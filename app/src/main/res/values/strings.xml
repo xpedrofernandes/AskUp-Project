@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">AskUp</string>
+    <string name="title_activity_login">LoginActivity</string>
+    <string name="title_activity_student">StudentActivity</string>
+    <string name="title_activity_lecturer">LecturerActivity</string>
+</resources>
