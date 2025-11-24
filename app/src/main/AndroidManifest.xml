@@ -23,6 +23,10 @@
             android:label="@string/title_activity_student"
             android:theme="@style/Theme.AskUp" /> <!-- LOGIN is the first screen (launcher) -->
         <activity
+            android:name=".RegisterActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AskUp" />
+        <activity
             android:name=".LoginActivity"
             android:exported="true"
             android:label="@string/title_activity_login"
