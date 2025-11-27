@@ -10,19 +10,21 @@ import androidx.room.RoomDatabase
 @Database(
     entities = [
         User::class,
-        Session::class  // Added session entity
+        Session::class,
+        Question::class  
     ],
-    version = 2,  // Increment version when adding new entities
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     // DAOs for accessing each table
     abstract fun userDao(): UserDao
-    abstract fun sessionDao(): SessionDao  // Added session DAO
+    abstract fun sessionDao(): SessionDao
+    abstract fun questionDao(): QuestionDao  // Added question DAO
 
     companion object {
-        // Only one database instance
+        // Singleton pattern - only one database instance
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
