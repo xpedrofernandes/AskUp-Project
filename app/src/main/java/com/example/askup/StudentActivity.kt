@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -63,6 +64,8 @@ class StudentActivity : ComponentActivity() {
         var questions by remember { mutableStateOf<List<Question>>(emptyList()) }
         var upvotedQuestions by remember { mutableStateOf<List<Int>>(emptyList()) }
         var showDialog by remember { mutableStateOf(false) }
+        var showDetailsDialog by remember { mutableStateOf(false) }
+        var selectedQuestion by remember { mutableStateOf<Question?>(null) }
 
         // Load questions from database
         LaunchedEffect(sessionId) {
@@ -119,7 +122,11 @@ class StudentActivity : ComponentActivity() {
                             QuestionCard(
                                 question = question,
                                 hasUpvoted = upvotedQuestions.contains(question.questionId),
-                                onSwipeRight = { upvoteQuestion(question.questionId) }
+                                onSwipeRight = { upvoteQuestion(question.questionId) },
+                                onLongPress = {
+                                    selectedQuestion = question
+                                    showDetailsDialog = true
+                                }
                             )
                         }
                     }
@@ -134,6 +141,13 @@ class StudentActivity : ComponentActivity() {
                     postQuestion(questionText)
                     showDialog = false
                 }
+            )
+        }
+
+        if (showDetailsDialog && selectedQuestion != null) {
+            QuestionDetailsDialog(
+                question = selectedQuestion!!,
+                onDismiss = { showDetailsDialog = false }
             )
         }
     }
@@ -184,10 +198,113 @@ class StudentActivity : ComponentActivity() {
     }
 
     @Composable
+    fun QuestionDetailsDialog(
+        question: Question,
+        onDismiss: () -> Unit
+    ) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Question Details") },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = question.questionText,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+
+                    Divider()
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Upvotes:",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                        Text(
+                            text = "${question.upvotes}",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Posted at:",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                        Text(
+                            text = formatFullTime(question.timestamp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Status:",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                        Text(
+                            text = if (question.isAnswered) "Answered" else "Pending",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (question.isAnswered) MaterialTheme.colorScheme.primary else Color.Gray
+                        )
+                    }
+
+                    if (question.isHighlighted) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Highlighted:",
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                            Text(
+                                text = "⭐ Yes",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.tertiary
+                            )
+                        }
+                    }
+
+                    if (question.answer != null) {
+                        Divider()
+                        Text(
+                            text = "Answer:",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = question.answer,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+
+    @Composable
     fun QuestionCard(
         question: Question,
         hasUpvoted: Boolean,
-        onSwipeRight: () -> Unit
+        onSwipeRight: () -> Unit,
+        onLongPress: () -> Unit
     ) {
         var offsetX by remember { mutableStateOf(0f) }
 
@@ -205,6 +322,13 @@ class StudentActivity : ComponentActivity() {
                         },
                         onHorizontalDrag = { _, dragAmount ->
                             offsetX += dragAmount
+                        }
+                    )
+                }
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onLongPress = {
+                            onLongPress()
                         }
                     )
                 },
@@ -328,6 +452,11 @@ class StudentActivity : ComponentActivity() {
 
     private fun formatTime(timestamp: Long): String {
         val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+        return sdf.format(Date(timestamp))
+    }
+
+    private fun formatFullTime(timestamp: Long): String {
+        val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
         return sdf.format(Date(timestamp))
     }
 }
