@@ -11,7 +11,7 @@ import androidx.room.RoomDatabase
     entities = [
         User::class,
         Session::class,
-        Question::class  
+        Question::class  // Added question entity
     ],
     version = 3,
     exportSchema = false
