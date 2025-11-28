@@ -1,21 +1,30 @@
 package com.example.askup
 
+import android.content.Context
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.example.askup.database.AppDatabase
 import com.example.askup.database.Question
+import com.example.askup.database.UserUpvote
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -23,6 +32,7 @@ import java.util.*
 class StudentActivity : ComponentActivity() {
 
     private lateinit var database: AppDatabase
+    private lateinit var vibrator: Vibrator
     private var sessionId: Int = 0
     private var userId: Int = 0
 
@@ -30,6 +40,7 @@ class StudentActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         database = AppDatabase.getDatabase(applicationContext)
+        vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 
         sessionId = intent.getIntExtra("sessionId", 0)
         userId = intent.getIntExtra("userId", 0)
@@ -50,11 +61,20 @@ class StudentActivity : ComponentActivity() {
     @Composable
     fun StudentScreen(username: String) {
         var questions by remember { mutableStateOf<List<Question>>(emptyList()) }
+        var upvotedQuestions by remember { mutableStateOf<List<Int>>(emptyList()) }
         var showDialog by remember { mutableStateOf(false) }
 
+        // Load questions from database
         LaunchedEffect(sessionId) {
             database.questionDao().getQuestionsForSession(sessionId).collect { questionList ->
                 questions = questionList
+            }
+        }
+
+        // Load which questions this user has upvoted
+        LaunchedEffect(userId) {
+            database.userUpvoteDao().getUpvotedQuestions(userId).collect { upvotedList ->
+                upvotedQuestions = upvotedList
             }
         }
 
@@ -96,7 +116,11 @@ class StudentActivity : ComponentActivity() {
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(questions) { question ->
-                            QuestionCard(question)
+                            QuestionCard(
+                                question = question,
+                                hasUpvoted = upvotedQuestions.contains(question.questionId),
+                                onSwipeRight = { upvoteQuestion(question.questionId) }
+                            )
                         }
                     }
                 }
@@ -160,9 +184,30 @@ class StudentActivity : ComponentActivity() {
     }
 
     @Composable
-    fun QuestionCard(question: Question) {
+    fun QuestionCard(
+        question: Question,
+        hasUpvoted: Boolean,
+        onSwipeRight: () -> Unit
+    ) {
+        var offsetX by remember { mutableStateOf(0f) }
+
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            // Check if swipe was far enough to the right
+                            if (offsetX > 200f) {
+                                onSwipeRight()
+                            }
+                            offsetX = 0f
+                        },
+                        onHorizontalDrag = { _, dragAmount ->
+                            offsetX += dragAmount
+                        }
+                    )
+                },
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(
@@ -179,10 +224,21 @@ class StudentActivity : ComponentActivity() {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Upvote icon and count
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ThumbUp,
+                            contentDescription = "Upvotes",
+                            modifier = Modifier.size(20.dp),
+                            tint = if (hasUpvoted) MaterialTheme.colorScheme.primary else Color.Gray
+                        )
                         Text(
-                            text = "👍 ${question.upvotes}",
-                            style = MaterialTheme.typography.bodyMedium
+                            text = "${question.upvotes}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (hasUpvoted) MaterialTheme.colorScheme.primary else Color.Gray
                         )
                     }
 
@@ -209,6 +265,7 @@ class StudentActivity : ComponentActivity() {
                     )
                 }
 
+                // Show answer if question has been answered
                 if (question.answer != null) {
                     Divider(modifier = Modifier.padding(vertical = 8.dp))
                     Text(
@@ -234,6 +291,38 @@ class StudentActivity : ComponentActivity() {
                 questionText = questionText
             )
             database.questionDao().insertQuestion(newQuestion)
+        }
+    }
+
+    private fun upvoteQuestion(questionId: Int) {
+        lifecycleScope.launch {
+            val alreadyUpvoted = database.userUpvoteDao().hasUserUpvoted(userId, questionId)
+
+            if (alreadyUpvoted) {
+                runOnUiThread {
+                    Toast.makeText(
+                        this@StudentActivity,
+                        "You already upvoted this question",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } else {
+                val upvote = UserUpvote(
+                    userId = userId,
+                    questionId = questionId
+                )
+                database.userUpvoteDao().insertUpvote(upvote)
+                database.questionDao().upvoteQuestion(questionId)
+
+                if (vibrator.hasVibrator()) {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                    } else {
+                        @Suppress("DEPRECATION")
+                        vibrator.vibrate(50)
+                    }
+                }
+            }
         }
     }
 
