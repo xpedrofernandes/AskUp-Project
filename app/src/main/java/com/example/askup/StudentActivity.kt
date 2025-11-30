@@ -61,6 +61,30 @@ class StudentActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        println("StudentActivity: onStart - Activity is visible")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        println("StudentActivity: onResume - Activity is active and can receive input")
+    }
+
+    override fun onPause() {
+        super.onPause()
+        println("StudentActivity: onPause - Activity is partially visible")
+    }
+
+    override fun onStop() {
+        super.onStop()
+        println("StudentActivity: onStop - Activity is no longer visible")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        println("StudentActivity: onDestroy - Activity is being destroyed")
+    }
     @Composable
     fun StudentScreen(username: String) {
         var questions by remember { mutableStateOf<List<Question>>(emptyList()) }

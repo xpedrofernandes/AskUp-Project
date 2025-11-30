@@ -56,6 +56,30 @@ class LecturerActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        println("LecturerActivity: onStart - Activity is visible")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        println("LecturerActivity: onResume - Activity is active")
+    }
+
+    override fun onPause() {
+        super.onPause()
+        println("LecturerActivity: onPause - Activity is partially visible")
+    }
+
+    override fun onStop() {
+        super.onStop()
+        println("LecturerActivity: onStop - Activity is no longer visible")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        println("LecturerActivity: onDestroy - Activity is being destroyed")
+    }
     @Composable
     fun LecturerScreen() {
         var questions by remember { mutableStateOf<List<Question>>(emptyList()) }

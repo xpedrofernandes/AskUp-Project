@@ -105,6 +105,30 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        println("MainActivity: onStart - Activity is visible")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        println("MainActivity: onResume - Activity is active")
+    }
+
+    override fun onPause() {
+        super.onPause()
+        println("MainActivity: onPause - Activity is partially visible")
+    }
+
+    override fun onStop() {
+        super.onStop()
+        println("MainActivity: onStop - Activity is no longer visible")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        println("MainActivity: onDestroy - Activity is being destroyed")
+    }
     // Create a test session for development
     private fun createTestSession(userId: Int) {
         lifecycleScope.launch {
