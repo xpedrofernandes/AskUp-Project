@@ -1,18 +1,22 @@
 package com.example.askup
 
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.speech.RecognizerIntent
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ThumbUp
@@ -38,6 +42,17 @@ class StudentActivity : ComponentActivity() {
     private lateinit var vibrator: Vibrator
     private var sessionId: Int = 0
     private var userId: Int = 0
+    private var speechResultCallback: ((String) -> Unit)? = null
+
+    private val speechRecognizerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val results = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            val spokenText = results?.get(0) ?: ""
+            speechResultCallback?.invoke(spokenText)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -85,6 +100,7 @@ class StudentActivity : ComponentActivity() {
         super.onDestroy()
         println("StudentActivity: onDestroy - Activity is being destroyed")
     }
+
     @Composable
     fun StudentScreen(username: String) {
         var questions by remember { mutableStateOf<List<Question>>(emptyList()) }
@@ -166,6 +182,9 @@ class StudentActivity : ComponentActivity() {
                 onSubmit = { questionText ->
                     postQuestion(questionText)
                     showDialog = false
+                },
+                onMicClick = { callback ->
+                    startSpeechRecognition(callback)
                 }
             )
         }
@@ -181,7 +200,8 @@ class StudentActivity : ComponentActivity() {
     @Composable
     fun AskQuestionDialog(
         onDismiss: () -> Unit,
-        onSubmit: (String) -> Unit
+        onSubmit: (String) -> Unit,
+        onMicClick: ((String) -> Unit) -> Unit
     ) {
         var questionText by remember { mutableStateOf("") }
 
@@ -194,13 +214,33 @@ class StudentActivity : ComponentActivity() {
                         text = "What would you like to ask?",
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    TextField(
-                        value = questionText,
-                        onValueChange = { questionText = it },
-                        placeholder = { Text("Type your question here...") },
+
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        minLines = 3
-                    )
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        TextField(
+                            value = questionText,
+                            onValueChange = { questionText = it },
+                            placeholder = { Text("Type or speak your question...") },
+                            modifier = Modifier.weight(1f),
+                            minLines = 3
+                        )
+
+                        TextButton(
+                            onClick = {
+                                onMicClick { spokenText ->
+                                    questionText = spokenText
+                                }
+                            }
+                        ) {
+                            Text(
+                                text = "🎤",
+                                style = MaterialTheme.typography.headlineMedium
+                            )
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -427,6 +467,22 @@ class StudentActivity : ComponentActivity() {
                     )
                 }
             }
+        }
+    }
+
+    private fun startSpeechRecognition(callback: (String) -> Unit) {
+        speechResultCallback = callback
+
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak your question")
+        }
+
+        try {
+            speechRecognizerLauncher.launch(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Speech recognition not available", Toast.LENGTH_SHORT).show()
         }
     }
 
