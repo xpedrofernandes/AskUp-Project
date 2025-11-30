@@ -12,7 +12,11 @@ interface QuestionDao {
     suspend fun insertQuestion(question: Question): Long
 
     // Get all questions for a specific session, sorted by upvotes (most popular first)
-    @Query("SELECT * FROM questions WHERE sessionId = :sessionId ORDER BY upvotes DESC, timestamp DESC")
+    @Query("""
+    SELECT * FROM questions 
+    WHERE sessionId = :sessionId 
+    ORDER BY isHighlighted DESC, upvotes DESC, timestamp DESC
+    """)
     fun getQuestionsForSession(sessionId: Int): Flow<List<Question>>
 
     // Get only unanswered questions for a session
@@ -30,6 +34,10 @@ interface QuestionDao {
     // Upvote a question
     @Query("UPDATE questions SET upvotes = upvotes + 1 WHERE questionId = :questionId")
     suspend fun upvoteQuestion(questionId: Int)
+
+    // Remove an upvote (but never go below zero)
+    @Query("UPDATE questions SET upvotes = CASE WHEN upvotes > 0 THEN upvotes - 1 ELSE 0 END WHERE questionId = :questionId")
+    suspend fun removeUpvote(questionId: Int)
 
     // Mark a question as answered with the answer text
     @Query("UPDATE questions SET isAnswered = 1, answer = :answer WHERE questionId = :questionId")

@@ -22,4 +22,5 @@ interface UserUpvoteDao {
     // Remove an upvote
     @Query("DELETE FROM user_upvotes WHERE userId = :userId AND questionId = :questionId")
     suspend fun removeUpvote(userId: Int, questionId: Int)
+
 }

@@ -56,7 +56,7 @@ class LecturerActivity : ComponentActivity() {
         var selectedQuestion by remember { mutableStateOf<Question?>(null) }
         var answerText by remember { mutableStateOf("") }
 
-        // observe questions for this session
+        // Observe questions for this session
         LaunchedEffect(sessionId) {
             database.questionDao()
                 .getQuestionsForSession(sessionId)
@@ -79,7 +79,7 @@ class LecturerActivity : ComponentActivity() {
                 )
 
                 Text(
-                    text = "Manage questions for this session:",
+                    text = "Pin important questions and mark them as answered.",
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(bottom = 16.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -104,7 +104,7 @@ class LecturerActivity : ComponentActivity() {
                             LecturerQuestionCard(
                                 question = q,
                                 onToggleAnswered = { toggleAnswered(q) },
-                                onToggleHighlighted = { toggleHighlighted(q) },
+                                onTogglePinned = { togglePin(q) },
                                 onEditAnswer = {
                                     selectedQuestion = q
                                     answerText = q.answer ?: ""
@@ -135,7 +135,7 @@ class LecturerActivity : ComponentActivity() {
     fun LecturerQuestionCard(
         question: Question,
         onToggleAnswered: () -> Unit,
-        onToggleHighlighted: () -> Unit,
+        onTogglePinned: () -> Unit,
         onEditAnswer: () -> Unit
     ) {
         Card(
@@ -144,14 +144,14 @@ class LecturerActivity : ComponentActivity() {
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
 
-                // main question text
+                // Question text
                 Text(
                     text = question.questionText,
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                // meta row: upvotes + time
+                // Meta row: upvotes + time
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -169,7 +169,7 @@ class LecturerActivity : ComponentActivity() {
                     )
                 }
 
-                // status line
+                // Status line: answered + pinned
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -187,14 +187,14 @@ class LecturerActivity : ComponentActivity() {
 
                     if (question.isHighlighted) {
                         Text(
-                            text = "⭐ Highlighted",
+                            text = "📌 Pinned",
                             color = MaterialTheme.colorScheme.tertiary,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
                 }
 
-                // existing answer (if any)
+                // Existing answer (if any)
                 if (question.answer != null) {
                     Text(
                         text = "Answer:",
@@ -208,7 +208,7 @@ class LecturerActivity : ComponentActivity() {
                     )
                 }
 
-                // action buttons
+                // Action buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -221,10 +221,10 @@ class LecturerActivity : ComponentActivity() {
                         )
                     }
 
-                    TextButton(onClick = onToggleHighlighted) {
+                    TextButton(onClick = onTogglePinned) {
                         Text(
-                            text = if (question.isHighlighted) "Un-highlight"
-                            else "Highlight"
+                            text = if (question.isHighlighted) "Unpin"
+                            else "Pin"
                         )
                     }
 
@@ -277,26 +277,24 @@ class LecturerActivity : ComponentActivity() {
         )
     }
 
-    // -------- helper DB functions (run in coroutines) --------
+    // -------- helper DB functions --------
 
     private fun toggleAnswered(question: Question) {
         lifecycleScope.launch {
-            // just flip the flag and reuse updateQuestion()
             val updated = question.copy(isAnswered = !question.isAnswered)
             database.questionDao().updateQuestion(updated)
         }
     }
 
-    private fun toggleHighlighted(question: Question) {
+    private fun togglePin(question: Question) {
         lifecycleScope.launch {
-            database.questionDao()
-                .setHighlighted(question.questionId, !question.isHighlighted)
+            val newState = !question.isHighlighted
+            database.questionDao().setHighlighted(question.questionId, newState)
         }
     }
 
     private fun setAnswer(questionId: Int, answer: String) {
         lifecycleScope.launch {
-            // use your existing DAO method that sets isAnswered = 1 and answer = :answer
             database.questionDao().answerQuestion(questionId, answer)
         }
     }

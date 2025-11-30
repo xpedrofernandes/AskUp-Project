@@ -12,6 +12,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ThumbUp
@@ -28,7 +29,8 @@ import com.example.askup.database.Question
 import com.example.askup.database.UserUpvote
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 class StudentActivity : ComponentActivity() {
 
@@ -67,7 +69,7 @@ class StudentActivity : ComponentActivity() {
         var showDetailsDialog by remember { mutableStateOf(false) }
         var selectedQuestion by remember { mutableStateOf<Question?>(null) }
 
-        // Load questions from database
+        // Load questions from database, ordered with pinned first, then upvotes
         LaunchedEffect(sessionId) {
             database.questionDao().getQuestionsForSession(sessionId).collect { questionList ->
                 questions = questionList
@@ -266,11 +268,11 @@ class StudentActivity : ComponentActivity() {
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Highlighted:",
+                                text = "Pinned:",
                                 style = MaterialTheme.typography.labelMedium
                             )
                             Text(
-                                text = "⭐ Yes",
+                                text = "📌 Yes",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.tertiary
                             )
@@ -314,7 +316,6 @@ class StudentActivity : ComponentActivity() {
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
                         onDragEnd = {
-                            // Check if swipe was far enough to the right
                             if (offsetX > 200f) {
                                 onSwipeRight()
                             }
@@ -327,9 +328,7 @@ class StudentActivity : ComponentActivity() {
                 }
                 .pointerInput(Unit) {
                     detectTapGestures(
-                        onLongPress = {
-                            onLongPress()
-                        }
+                        onLongPress = { onLongPress() }
                     )
                 },
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -348,10 +347,11 @@ class StudentActivity : ComponentActivity() {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Upvote icon and count
+                    // Upvote icon and count – clickable row
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.clickable { onSwipeRight() }
                     ) {
                         Icon(
                             imageVector = Icons.Default.ThumbUp,
@@ -376,7 +376,7 @@ class StudentActivity : ComponentActivity() {
 
                     if (question.isHighlighted) {
                         Text(
-                            text = "⭐ Highlighted",
+                            text = "📌 Pinned",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.tertiary
                         )
@@ -389,7 +389,6 @@ class StudentActivity : ComponentActivity() {
                     )
                 }
 
-                // Show answer if question has been answered
                 if (question.answer != null) {
                     Divider(modifier = Modifier.padding(vertical = 8.dp))
                     Text(
@@ -423,14 +422,27 @@ class StudentActivity : ComponentActivity() {
             val alreadyUpvoted = database.userUpvoteDao().hasUserUpvoted(userId, questionId)
 
             if (alreadyUpvoted) {
-                runOnUiThread {
-                    Toast.makeText(
-                        this@StudentActivity,
-                        "You can only upvote a question once",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                // REMOVE upvote: delete row + decrement counter
+                database.userUpvoteDao().removeUpvote(userId, questionId)
+                database.questionDao().removeUpvote(questionId)
+
+                // Optional: small vibration for feedback
+                if (vibrator.hasVibrator()) {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        vibrator.vibrate(
+                            VibrationEffect.createOneShot(
+                                30,
+                                VibrationEffect.DEFAULT_AMPLITUDE
+                            )
+                        )
+                    } else {
+                        @Suppress("DEPRECATION")
+                        vibrator.vibrate(30)
+                    }
                 }
+
             } else {
+                // ADD upvote: insert row + increment counter
                 val upvote = UserUpvote(
                     userId = userId,
                     questionId = questionId
@@ -440,7 +452,12 @@ class StudentActivity : ComponentActivity() {
 
                 if (vibrator.hasVibrator()) {
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                        vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                        vibrator.vibrate(
+                            VibrationEffect.createOneShot(
+                                50,
+                                VibrationEffect.DEFAULT_AMPLITUDE
+                            )
+                        )
                     } else {
                         @Suppress("DEPRECATION")
                         vibrator.vibrate(50)
