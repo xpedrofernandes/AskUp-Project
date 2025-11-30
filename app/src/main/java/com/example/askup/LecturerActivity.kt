@@ -26,6 +26,7 @@ class LecturerActivity : ComponentActivity() {
     private var sessionId: Int = 0
     private var userId: Int = 0
     private var username: String = "Lecturer"
+    private var role: String = "student"   // 👈 default, will be overwritten by Intent
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,6 +36,13 @@ class LecturerActivity : ComponentActivity() {
         sessionId = intent.getIntExtra("sessionId", 0)
         userId = intent.getIntExtra("userId", 0)
         username = intent.getStringExtra("username") ?: "Lecturer"
+        role = intent.getStringExtra("role") ?: "student"
+
+        // 🚫 Hard guard: if this user is not a lecturer, close this screen
+        if (role != "lecturer") {
+            finish()
+            return
+        }
 
         setContent {
             MaterialTheme {
