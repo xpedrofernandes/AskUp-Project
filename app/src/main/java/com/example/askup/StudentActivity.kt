@@ -426,7 +426,7 @@ class StudentActivity : ComponentActivity() {
                 runOnUiThread {
                     Toast.makeText(
                         this@StudentActivity,
-                        "You already upvoted this question",
+                        "You can only upvote a question once",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
