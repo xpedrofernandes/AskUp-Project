@@ -1,8 +1,11 @@
 package com.example.askup
 
+import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.location.Geocoder
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -29,20 +32,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.askup.database.AppDatabase
 import com.example.askup.database.Question
 import com.example.askup.database.UserUpvote
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-
 class StudentActivity : ComponentActivity() {
 
     private lateinit var database: AppDatabase
     private lateinit var vibrator: Vibrator
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+
     private var sessionId: Int = 0
     private var userId: Int = 0
     private var speechResultCallback: ((String) -> Unit)? = null
@@ -63,12 +71,23 @@ class StudentActivity : ComponentActivity() {
         database = AppDatabase.getDatabase(applicationContext)
         vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 
+        // Location client for GPS / network location.
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
         sessionId = intent.getIntExtra("sessionId", 0)
         userId = intent.getIntExtra("userId", 0)
         val username = intent.getStringExtra("username") ?: "Student"
 
         setContent {
             var isDarkMode by remember { mutableStateOf(ThemePreference.isDarkMode(this)) }
+            var cityName by remember { mutableStateOf("Getting location...") }
+
+            // When the screen is first composed, try to retrieve the city name.
+            LaunchedEffect(Unit) {
+                this@StudentActivity.fetchCityName { city ->
+                    cityName = city
+                }
+            }
 
             MaterialTheme(
                 colorScheme = if (isDarkMode) darkColorScheme() else lightColorScheme()
@@ -83,7 +102,8 @@ class StudentActivity : ComponentActivity() {
                         onToggleDarkMode = {
                             isDarkMode = !isDarkMode
                             ThemePreference.setDarkMode(this, isDarkMode)
-                        }
+                        },
+                        cityName = cityName
                     )
                 }
             }
@@ -115,12 +135,90 @@ class StudentActivity : ComponentActivity() {
         println("StudentActivity: onDestroy - Activity is being destroyed")
     }
 
+    // Logs the user out by clearing the back stack and sending them to LoginActivity.
+    private fun logoutAndReturnToLogin() {
+        val intent = Intent(this, LoginActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        startActivity(intent)
+        finish()
+    }
+
+    // Requests fine location permission if needed and retrieves the current city name.
+    private fun fetchCityName(onResult: (String) -> Unit) {
+        val hasPermission = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (!hasPermission) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                LOCATION_PERMISSION_REQUEST_CODE
+            )
+            onResult("Location permission not granted")
+            return
+        }
+
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location ->
+                if (location != null) {
+                    try {
+                        val geocoder = Geocoder(this, Locale.getDefault())
+                        val addresses = geocoder.getFromLocation(
+                            location.latitude,
+                            location.longitude,
+                            1
+                        )
+                        val city = addresses?.firstOrNull()?.locality
+                        val country = addresses?.firstOrNull()?.countryCode
+                        onResult(
+                            when {
+                                city != null && country != null -> "$city, $country"
+                                city != null -> city
+                                else -> "Unknown city"
+                            }
+                        )
+                    } catch (e: Exception) {
+                        onResult("Location unavailable")
+                    }
+                } else {
+                    onResult("Location unavailable")
+                }
+            }
+            .addOnFailureListener {
+                onResult("Location error")
+            }
+    }
+
+    // If the user grants permission after the system dialog, fetch the city name again.
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE &&
+            grantResults.isNotEmpty() &&
+            grantResults[0] == PackageManager.PERMISSION_GRANTED
+        ) {
+            // Permission was granted – call your function that gets the city again
+            fetchCityName{ /* no-op */ }
+        } else {
+            // Permission denied – optional: handle this (e.g., keep "Unknown city")
+        }
+    }
+
+
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun StudentScreen(
         username: String,
         isDarkMode: Boolean,
-        onToggleDarkMode: () -> Unit
+        onToggleDarkMode: () -> Unit,
+        cityName: String
     ) {
         var questions by remember { mutableStateOf<List<Question>>(emptyList()) }
         var upvotedQuestions by remember { mutableStateOf<List<Int>>(emptyList()) }
@@ -128,15 +226,20 @@ class StudentActivity : ComponentActivity() {
         var showDetailsDialog by remember { mutableStateOf(false) }
         var selectedQuestion by remember { mutableStateOf<Question?>(null) }
 
+        // FAQ dialog state for the drawer "FAQ" item.
+        var showFaqDialog by remember { mutableStateOf(false) }
+
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
 
+        // Load questions from database, ordered with pinned first, then upvotes
         LaunchedEffect(sessionId) {
             database.questionDao().getQuestionsForSession(sessionId).collect { questionList ->
                 questions = questionList
             }
         }
 
+        // Load which questions this user has upvoted
         LaunchedEffect(userId) {
             database.userUpvoteDao().getUpvotedQuestions(userId).collect { upvotedList ->
                 upvotedQuestions = upvotedList
@@ -152,6 +255,14 @@ class StudentActivity : ComponentActivity() {
                         onToggleDarkMode = onToggleDarkMode,
                         onCloseDrawer = {
                             scope.launch { drawerState.close() }
+                        },
+                        // Open FAQ dialog when FAQ is tapped in the drawer.
+                        onFaqClick = {
+                            showFaqDialog = true
+                        },
+                        // Logout from this activity when Logout is tapped in the drawer.
+                        onLogoutClick = {
+                            logoutAndReturnToLogin()
                         }
                     )
                 }
@@ -160,7 +271,16 @@ class StudentActivity : ComponentActivity() {
             Scaffold(
                 topBar = {
                     CenterAlignedTopAppBar(
-                        title = { Text("Questions") },
+                        title = {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Questions")
+                                Text(
+                                    cityName,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        },
                         navigationIcon = {
                             IconButton(onClick = { finish() }) {
                                 Icon(
@@ -245,13 +365,35 @@ class StudentActivity : ComponentActivity() {
                 onDismiss = { showDetailsDialog = false }
             )
         }
+
+        // Simple FAQ dialog that explains how to use the student view.
+        if (showFaqDialog) {
+            AlertDialog(
+                onDismissRequest = { showFaqDialog = false },
+                title = { Text("FAQ") },
+                text = {
+                    Text(
+                        "Swipe right or tap the thumbs-up icon to upvote questions.\n\n" +
+                                "Long-press a card to see full question details.\n\n" +
+                                "Use the Settings menu to switch between light and dark mode."
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { showFaqDialog = false }) {
+                        Text("Close")
+                    }
+                }
+            )
+        }
     }
 
     @Composable
     fun DrawerContent(
         isDarkMode: Boolean,
         onToggleDarkMode: () -> Unit,
-        onCloseDrawer: () -> Unit
+        onCloseDrawer: () -> Unit,
+        onFaqClick: () -> Unit,
+        onLogoutClick: () -> Unit
     ) {
         Column(
             modifier = Modifier
@@ -292,7 +434,9 @@ class StudentActivity : ComponentActivity() {
                 }
                 Switch(
                     checked = isDarkMode,
-                    onCheckedChange = { onToggleDarkMode() }
+                    onCheckedChange = {
+                        onToggleDarkMode()
+                    }
                 )
             }
 
@@ -302,7 +446,36 @@ class StudentActivity : ComponentActivity() {
                 text = "Current theme: ${if (isDarkMode) "Dark 🌙" else "Light ☀️"}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 8.dp)
+                modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
+            )
+
+            // FAQ entry in the drawer – opens a help dialog for this activity.
+            Text(
+                text = "FAQ",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+                    .clickable {
+                        onCloseDrawer()
+                        onFaqClick()
+                    }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Logout entry in the drawer – clears the back stack and returns to LoginActivity.
+            Text(
+                text = "Logout",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+                    .clickable {
+                        onCloseDrawer()
+                        onLogoutClick()
+                    }
             )
         }
     }
@@ -521,6 +694,7 @@ class StudentActivity : ComponentActivity() {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Upvote icon and count – clickable row
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -611,9 +785,11 @@ class StudentActivity : ComponentActivity() {
             val alreadyUpvoted = database.userUpvoteDao().hasUserUpvoted(userId, questionId)
 
             if (alreadyUpvoted) {
+                // REMOVE upvote: delete row + decrement counter
                 database.userUpvoteDao().removeUpvote(userId, questionId)
                 database.questionDao().removeUpvote(questionId)
 
+                // Optional: small vibration for feedback
                 if (vibrator.hasVibrator()) {
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                         vibrator.vibrate(
@@ -629,6 +805,7 @@ class StudentActivity : ComponentActivity() {
                 }
 
             } else {
+                // ADD upvote: insert row + increment counter
                 val upvote = UserUpvote(
                     userId = userId,
                     questionId = questionId
@@ -661,5 +838,9 @@ class StudentActivity : ComponentActivity() {
     private fun formatFullTime(timestamp: Long): String {
         val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
         return sdf.format(Date(timestamp))
+    }
+
+    companion object {
+        private const val LOCATION_PERMISSION_REQUEST_CODE = 1001
     }
 }

@@ -1,8 +1,13 @@
 package com.example.askup
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.location.Geocoder
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,9 +20,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.askup.database.AppDatabase
 import com.example.askup.database.Question
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -30,6 +38,9 @@ class LecturerActivity : ComponentActivity() {
     private var userId: Int = 0
     private var username: String = "Lecturer"
     private var role: String = "student"
+
+    // Location client used to get the last known location for displaying city name.
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,6 +56,9 @@ class LecturerActivity : ComponentActivity() {
             finish()
             return
         }
+
+        // Initialise fused location client used for GPS / city name feature.
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         setContent {
             var isDarkMode by remember { mutableStateOf(ThemePreference.isDarkMode(this)) }
@@ -93,6 +107,96 @@ class LecturerActivity : ComponentActivity() {
         println("LecturerActivity: onDestroy - Activity is being destroyed")
     }
 
+    // Logs the lecturer out by clearing the back stack and sending them to LoginActivity.
+    private fun logoutAndReturnToLogin() {
+        val intent = Intent(this, LoginActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        startActivity(intent)
+        finish()
+    }
+
+    // Location helper used by both the initial load and the permission callback.
+    // Fetches a friendly "City, Country" string and returns it via the onResult callback.
+    private fun fetchCityName(onResult: (String) -> Unit) {
+        val fineGranted = ActivityCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        val coarseGranted = ActivityCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (!fineGranted && !coarseGranted) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ),
+                LOCATION_PERMISSION_REQUEST_CODE
+            )
+            onResult("Unknown city")
+            return
+        }
+
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location ->
+                if (location != null) {
+                    try {
+                        val geocoder = Geocoder(this, Locale.getDefault())
+                        val addresses = geocoder.getFromLocation(
+                            location.latitude,
+                            location.longitude,
+                            1
+                        )
+
+                        val address = addresses?.firstOrNull()
+                        val city = address?.locality ?: address?.subAdminArea
+                        val country = address?.countryCode
+
+                        val label = if (!city.isNullOrBlank() && !country.isNullOrBlank()) {
+                            "$city, $country"
+                        } else {
+                            "Unknown city"
+                        }
+                        onResult(label)
+                    } catch (e: Exception) {
+                        onResult("Unknown city")
+                    }
+                } else {
+                    onResult("Unknown city")
+                }
+            }
+            .addOnFailureListener {
+                onResult("Unknown city")
+            }
+    }
+
+    // If the user grants permission after the system dialog, fetch the city name again.
+    @Suppress("DEPRECATION") // Using legacy callback for runtime permissions handling.
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE &&
+            grantResults.isNotEmpty() &&
+            grantResults[0] == PackageManager.PERMISSION_GRANTED
+        ) {
+            // We cannot directly change Compose state here, so we just refresh the
+            // last known location; the next time the Composable calls fetchCityName
+            // it will resolve to the new permission state.
+            fetchCityName { /* no-op here */ }
+        } else {
+            // Permission denied – optional: keep "Unknown city" label.
+        }
+    }
+
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun LecturerScreen(
@@ -103,6 +207,12 @@ class LecturerActivity : ComponentActivity() {
         var showAnswerDialog by remember { mutableStateOf(false) }
         var selectedQuestion by remember { mutableStateOf<Question?>(null) }
         var answerText by remember { mutableStateOf("") }
+
+        // Instructions dialog state for the drawer "Instructions" item.
+        var showInstructionsDialog by remember { mutableStateOf(false) }
+
+        // City name shown under the title, populated from GPS.
+        var cityName by remember { mutableStateOf("Locating...") }
 
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
@@ -115,6 +225,13 @@ class LecturerActivity : ComponentActivity() {
                 }
         }
 
+        // Trigger location lookup once when the screen is first composed.
+        LaunchedEffect(Unit) {
+            fetchCityName { city ->
+                cityName = city
+            }
+        }
+
         ModalNavigationDrawer(
             drawerState = drawerState,
             drawerContent = {
@@ -124,15 +241,30 @@ class LecturerActivity : ComponentActivity() {
                         onToggleDarkMode = onToggleDarkMode,
                         onCloseDrawer = {
                             scope.launch { drawerState.close() }
+                        },
+                        onInstructionsClick = {
+                            showInstructionsDialog = true
+                        },
+                        onLogoutClick = {
+                            logoutAndReturnToLogin()
                         }
                     )
                 }
             }
         ) {
-            Scaffold (
+            Scaffold(
                 topBar = {
                     CenterAlignedTopAppBar(
-                        title = { Text("Lecturer view – $username") },
+                        title = {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("Lecturer view – $username")
+                                Text(
+                                    text = cityName,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        },
                         navigationIcon = {
                             IconButton(onClick = { finish() }) {
                                 Icon(
@@ -210,13 +342,36 @@ class LecturerActivity : ComponentActivity() {
                 }
             )
         }
+
+        // Simple Instructions dialog that explains how to use the lecturer view.
+        if (showInstructionsDialog) {
+            AlertDialog(
+                onDismissRequest = { showInstructionsDialog = false },
+                title = { Text("Instructions") },
+                text = {
+                    Text(
+                        "Tap a question to add or edit an answer.\n\n" +
+                                "Use the buttons on each card to mark questions as answered " +
+                                "or pending, and to pin important questions.\n\n" +
+                                "Use the Settings menu to switch between light and dark mode."
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { showInstructionsDialog = false }) {
+                        Text("Close")
+                    }
+                }
+            )
+        }
     }
 
     @Composable
     fun DrawerContent(
         isDarkMode: Boolean,
         onToggleDarkMode: () -> Unit,
-        onCloseDrawer: () -> Unit
+        onCloseDrawer: () -> Unit,
+        onInstructionsClick: () -> Unit,
+        onLogoutClick: () -> Unit
     ) {
         Column(
             modifier = Modifier
@@ -257,7 +412,9 @@ class LecturerActivity : ComponentActivity() {
                 }
                 Switch(
                     checked = isDarkMode,
-                    onCheckedChange = { onToggleDarkMode() }
+                    onCheckedChange = {
+                        onToggleDarkMode()
+                    }
                 )
             }
 
@@ -267,7 +424,36 @@ class LecturerActivity : ComponentActivity() {
                 text = "Current theme: ${if (isDarkMode) "Dark 🌙" else "Light ☀️"}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 8.dp)
+                modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
+            )
+
+            // Instructions entry in the drawer.
+            Text(
+                text = "Instructions",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+                    .clickable {
+                        onCloseDrawer()
+                        onInstructionsClick()
+                    }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Logout entry in the drawer – clears the back stack and returns to LoginActivity.
+            Text(
+                text = "Logout",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+                    .clickable {
+                        onCloseDrawer()
+                        onLogoutClick()
+                    }
             )
         }
     }
@@ -435,5 +621,10 @@ class LecturerActivity : ComponentActivity() {
     private fun formatTime(timestamp: Long): String {
         val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
         return sdf.format(Date(timestamp))
+    }
+
+    companion object {
+        // Request code used for runtime location permission.
+        private const val LOCATION_PERMISSION_REQUEST_CODE = 1001
     }
 }

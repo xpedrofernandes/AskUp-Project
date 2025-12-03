@@ -7,15 +7,17 @@ import androidx.room.PrimaryKey
 // Questions can be upvoted by other students and answered by the lecturer
 @Entity(tableName = "questions")
 data class Question(
-    @PrimaryKey(autoGenerate = true)
-    val questionId: Int = 0,
-
-    val sessionId: Int,  // Which session this question belongs to
-    val studentId: Int,  // ID of the student who asked the question
+    @PrimaryKey(autoGenerate = true) val questionId: Int = 0,
+    val sessionId: Int,
+    val studentId: Int,
     val questionText: String,
+    val timestamp: Long = System.currentTimeMillis(),
     val upvotes: Int = 0,
-    val isAnswered: Boolean = false,  // Has the lecturer answered it?
-    val isHighlighted: Boolean = false,  // Did lecturer mark it as important?
-    val answer: String? = null,  // Lecturer's answer (null if not answered yet)
-    val timestamp: Long = System.currentTimeMillis()  // When was the question asked
+    val isAnswered: Boolean = false,
+    val isHighlighted: Boolean = false,
+    val answer: String? = null,
+    // City derived from GPS location (for marks: sensors + DB + UI)
+    val city: String? = null
 )
+
+

@@ -4,10 +4,15 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,9 +36,11 @@ class MainActivity : ComponentActivity() {
         val userId = intent.getIntExtra("userId", 0)
         val role = intent.getStringExtra("role") ?: "student"
 
+        // Creates or loads the shared test session for this module (navigation + DB usage).
         createTestSession(userId)
 
         setContent {
+            // Persisted dark mode preference (state management + accessibility).
             var isDarkMode by remember { mutableStateOf(ThemePreference.isDarkMode(this)) }
 
             MaterialTheme(
@@ -51,7 +58,9 @@ class MainActivity : ComponentActivity() {
                         onToggleDarkMode = {
                             isDarkMode = !isDarkMode
                             ThemePreference.setDarkMode(this, isDarkMode)
-                        }
+                        },
+                        // Logout sends the user back to LoginActivity and clears back stack.
+                        onLogout = { logoutAndReturnToLogin() }
                     )
                 }
             }
@@ -65,10 +74,14 @@ class MainActivity : ComponentActivity() {
         userId: Int,
         role: String,
         isDarkMode: Boolean,
-        onToggleDarkMode: () -> Unit
+        onToggleDarkMode: () -> Unit,
+        onLogout: () -> Unit
     ) {
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
+
+        // Simple state to control the FAQ dialog visibility (state management).
+        var showFaqDialog by remember { mutableStateOf(false) }
 
         ModalNavigationDrawer(
             drawerState = drawerState,
@@ -79,6 +92,14 @@ class MainActivity : ComponentActivity() {
                         onToggleDarkMode = onToggleDarkMode,
                         onCloseDrawer = {
                             scope.launch { drawerState.close() }
+                        },
+                        onLogout = {
+                            scope.launch { drawerState.close() }
+                            onLogout()
+                        },
+                        onFaqClicked = {
+                            scope.launch { drawerState.close() }
+                            showFaqDialog = true
                         }
                     )
                 }
@@ -160,6 +181,25 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+
+                // Simple FAQ dialog (counts as extra UX/help feature).
+                if (showFaqDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showFaqDialog = false },
+                        title = { Text("FAQ") },
+                        text = {
+                            Text(
+                                "AskUp lets students submit and upvote questions in real time, " +
+                                        "while lecturers can pin and answer the most important ones."
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(onClick = { showFaqDialog = false }) {
+                                Text("OK")
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -168,7 +208,9 @@ class MainActivity : ComponentActivity() {
     fun DrawerContent(
         isDarkMode: Boolean,
         onToggleDarkMode: () -> Unit,
-        onCloseDrawer: () -> Unit
+        onCloseDrawer: () -> Unit,
+        onLogout: () -> Unit,
+        onFaqClicked: () -> Unit
     ) {
         Column(
             modifier = Modifier
@@ -189,6 +231,7 @@ class MainActivity : ComponentActivity() {
                 modifier = Modifier.padding(vertical = 16.dp)
             )
 
+            // Dark mode toggle – accessibility + user preference.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -219,7 +262,33 @@ class MainActivity : ComponentActivity() {
                 text = "Current theme: ${if (isDarkMode) "Dark 🌙" else "Light ☀️"}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 8.dp)
+                modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
+            )
+
+            // FAQ entry – opens a simple help dialog.
+            Text(
+                text = "FAQ",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+                    .clickable {
+                        onFaqClicked()
+                        onCloseDrawer()
+                    }
+            )
+
+            // Logout entry – clears back stack and returns to LoginActivity.
+            Text(
+                text = "Logout",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+                    .clickable {
+                        onLogout()
+                    }
             )
         }
     }
@@ -267,5 +336,14 @@ class MainActivity : ComponentActivity() {
                 testSessionId = existingSession.sessionId
             }
         }
+    }
+
+    // Centralised logout: clears activity back stack and returns to LoginActivity.
+    private fun logoutAndReturnToLogin() {
+        val intent = Intent(this, LoginActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        startActivity(intent)
+        finish()
     }
 }

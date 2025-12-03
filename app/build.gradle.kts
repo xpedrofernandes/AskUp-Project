@@ -59,6 +59,10 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    implementation("com.google.android.gms:play-services-location:21.2.0")
+
+    // Google Play Services – location API (used to get GPS for city name)
+    implementation("com.google.android.gms:play-services-location:21.2.0")
 
     // ROOM Database
     val roomVersion = "2.6.1"

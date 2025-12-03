@@ -5,19 +5,12 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -36,83 +29,229 @@ class LoginActivity : ComponentActivity() {
         database = AppDatabase.getDatabase(applicationContext)
 
         setContent {
-            MaterialTheme {
+            var isDarkMode by remember { mutableStateOf(ThemePreference.isDarkMode(this)) }
+
+            MaterialTheme(
+                colorScheme = if (isDarkMode) darkColorScheme() else lightColorScheme()
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    LoginScreen()
+                    LoginScreen(
+                        isDarkMode = isDarkMode,
+                        onToggleDarkMode = {
+                            isDarkMode = !isDarkMode
+                            ThemePreference.setDarkMode(this, isDarkMode)
+                        }
+                    )
                 }
             }
         }
     }
 
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun LoginScreen() {
+    fun LoginScreen(
+        isDarkMode: Boolean,
+        onToggleDarkMode: () -> Unit
+    ) {
         val username = remember { mutableStateOf("") }
         val password = remember { mutableStateOf("") }
         val errorMessage = remember { mutableStateOf("") }
 
+        // Instructions dialog state for the drawer "Instructions" item.
+        var showInstructionsDialog by remember { mutableStateOf(false) }
+
+        val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+        val scope = rememberCoroutineScope()
+
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                ModalDrawerSheet {
+                    DrawerContent(
+                        isDarkMode = isDarkMode,
+                        onToggleDarkMode = onToggleDarkMode,
+                        onCloseDrawer = { scope.launch { drawerState.close() } },
+                        onInstructionsClick = { showInstructionsDialog = true }
+                    )
+                }
+            }
+        ) {
+            Scaffold(
+                topBar = {
+                    CenterAlignedTopAppBar(
+                        title = { Text("AskUp Login") },
+                        actions = {
+                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                Icon(
+                                    imageVector = Icons.Default.Menu,
+                                    contentDescription = "Menu"
+                                )
+                            }
+                        }
+                    )
+                }
+            ) { padding ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "Welcome to AskUp",
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+
+                    TextField(
+                        value = username.value,
+                        onValueChange = { username.value = it },
+                        label = { Text("Username") },
+                        modifier = Modifier.padding(top = 16.dp),
+                        singleLine = true
+                    )
+
+                    TextField(
+                        value = password.value,
+                        onValueChange = { password.value = it },
+                        label = { Text("Password") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.padding(top = 8.dp),
+                        singleLine = true
+                    )
+
+                    if (errorMessage.value.isNotEmpty()) {
+                        Text(
+                            text = errorMessage.value,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            if (username.value.isBlank() || password.value.isBlank()) {
+                                errorMessage.value = "Please enter username and password"
+                            } else {
+                                // Try to login with database
+                                loginUser(username.value, password.value)
+                            }
+                        },
+                        modifier = Modifier.padding(top = 16.dp)
+                    ) {
+                        Text(text = "Login")
+                    }
+
+                    TextButton(
+                        onClick = {
+                            val intent =
+                                Intent(this@LoginActivity, RegisterActivity::class.java)
+                            startActivity(intent)
+                        },
+                        modifier = Modifier.padding(top = 8.dp)
+                    ) {
+                        Text("Don't have an account? Register")
+                    }
+                }
+            }
+        }
+
+        // Simple instructions dialog for the login screen.
+        if (showInstructionsDialog) {
+            AlertDialog(
+                onDismissRequest = { showInstructionsDialog = false },
+                title = { Text("Instructions") },
+                text = {
+                    Text(
+                        "Enter your AskUp username and password to sign in.\n\n" +
+                                "Use the menu to switch between light and dark mode."
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { showInstructionsDialog = false }) {
+                        Text("Close")
+                    }
+                }
+            )
+        }
+    }
+
+    @Composable
+    fun DrawerContent(
+        isDarkMode: Boolean,
+        onToggleDarkMode: () -> Unit,
+        onCloseDrawer: () -> Unit,
+        onInstructionsClick: () -> Unit
+    ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .fillMaxHeight()
+                .padding(16.dp)
         ) {
             Text(
-                text = "AskUp Login",
-                style = MaterialTheme.typography.headlineMedium
+                text = "Settings",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(bottom = 24.dp)
             )
 
-            TextField(
-                value = username.value,
-                onValueChange = { username.value = it },
-                label = { Text("Username") },
-                modifier = Modifier.padding(top = 16.dp),
-                singleLine = true
+            Divider()
+
+            Text(
+                text = "Accessibility",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(vertical = 16.dp)
             )
 
-            TextField(
-                value = password.value,
-                onValueChange = { password.value = it },
-                label = { Text("Password") },
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.padding(top = 8.dp),
-                singleLine = true
-            )
-
-            if (errorMessage.value.isNotEmpty()) {
-                Text(
-                    text = errorMessage.value,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 8.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Dark Mode",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = if (isDarkMode) "Enabled" else "Disabled",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = isDarkMode,
+                    onCheckedChange = {
+                        onToggleDarkMode()
+                    }
                 )
             }
 
-            Button(
-                onClick = {
-                    if (username.value.isBlank() || password.value.isBlank()) {
-                        errorMessage.value = "Please enter username and password"
-                    } else {
-                        // Try to login with database
-                        loginUser(username.value, password.value)
-                    }
-                },
-                modifier = Modifier.padding(top = 16.dp)
-            ) {
-                Text(text = "Login")
-            }
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
 
-            TextButton(
-                onClick = {
-                    val intent = Intent(this@LoginActivity, RegisterActivity::class.java)
-                    startActivity(intent)
-                },
-                modifier = Modifier.padding(top = 8.dp)
-            ) {
-                Text("Don't have an account? Register")
-            }
+            Text(
+                text = "Current theme: ${if (isDarkMode) "Dark 🌙" else "Light ☀️"}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
+            )
+
+            Text(
+                text = "Instructions",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+                    .clickable {
+                        onCloseDrawer()
+                        onInstructionsClick()
+                    }
+            )
         }
     }
 
