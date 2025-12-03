@@ -6,6 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -80,6 +82,8 @@ class LecturerActivity : ComponentActivity() {
         super.onDestroy()
         println("LecturerActivity: onDestroy - Activity is being destroyed")
     }
+
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun LecturerScreen() {
         var questions by remember { mutableStateOf<List<Question>>(emptyList()) }
@@ -97,7 +101,21 @@ class LecturerActivity : ComponentActivity() {
                 }
         }
 
-        Scaffold { padding ->
+        Scaffold (
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = { Text("Lecturer view – $username") },
+                    navigationIcon = {
+                        IconButton(onClick = { finish() }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    }
+                )
+            }
+        ) { padding ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.*
@@ -27,6 +28,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
 import androidx.lifecycle.lifecycleScope
 import com.example.askup.database.AppDatabase
 import com.example.askup.database.Question
@@ -35,6 +40,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
 
 class StudentActivity : ComponentActivity() {
 
@@ -101,6 +107,7 @@ class StudentActivity : ComponentActivity() {
         println("StudentActivity: onDestroy - Activity is being destroyed")
     }
 
+    @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
     @Composable
     fun StudentScreen(username: String) {
         var questions by remember { mutableStateOf<List<Question>>(emptyList()) }
@@ -124,6 +131,19 @@ class StudentActivity : ComponentActivity() {
         }
 
         Scaffold(
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = { Text("Questions") },
+                    navigationIcon = {
+                        IconButton(onClick = { finish() }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    }
+                )
+            },
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = { showDialog = true }
