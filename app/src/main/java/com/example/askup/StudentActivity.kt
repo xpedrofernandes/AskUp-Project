@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,10 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
 import androidx.lifecycle.lifecycleScope
 import com.example.askup.database.AppDatabase
 import com.example.askup.database.Question
@@ -71,12 +68,23 @@ class StudentActivity : ComponentActivity() {
         val username = intent.getStringExtra("username") ?: "Student"
 
         setContent {
-            MaterialTheme {
+            var isDarkMode by remember { mutableStateOf(ThemePreference.isDarkMode(this)) }
+
+            MaterialTheme(
+                colorScheme = if (isDarkMode) darkColorScheme() else lightColorScheme()
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    StudentScreen(username)
+                    StudentScreen(
+                        username = username,
+                        isDarkMode = isDarkMode,
+                        onToggleDarkMode = {
+                            isDarkMode = !isDarkMode
+                            ThemePreference.setDarkMode(this, isDarkMode)
+                        }
+                    )
                 }
             }
         }
@@ -107,89 +115,111 @@ class StudentActivity : ComponentActivity() {
         println("StudentActivity: onDestroy - Activity is being destroyed")
     }
 
-    @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun StudentScreen(username: String) {
+    fun StudentScreen(
+        username: String,
+        isDarkMode: Boolean,
+        onToggleDarkMode: () -> Unit
+    ) {
         var questions by remember { mutableStateOf<List<Question>>(emptyList()) }
         var upvotedQuestions by remember { mutableStateOf<List<Int>>(emptyList()) }
         var showDialog by remember { mutableStateOf(false) }
         var showDetailsDialog by remember { mutableStateOf(false) }
         var selectedQuestion by remember { mutableStateOf<Question?>(null) }
 
-        // Load questions from database, ordered with pinned first, then upvotes
+        val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+        val scope = rememberCoroutineScope()
+
         LaunchedEffect(sessionId) {
             database.questionDao().getQuestionsForSession(sessionId).collect { questionList ->
                 questions = questionList
             }
         }
 
-        // Load which questions this user has upvoted
         LaunchedEffect(userId) {
             database.userUpvoteDao().getUpvotedQuestions(userId).collect { upvotedList ->
                 upvotedQuestions = upvotedList
             }
         }
 
-        Scaffold(
-            topBar = {
-                CenterAlignedTopAppBar(
-                    title = { Text("Questions") },
-                    navigationIcon = {
-                        IconButton(onClick = { finish() }) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
-                            )
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                ModalDrawerSheet {
+                    DrawerContent(
+                        isDarkMode = isDarkMode,
+                        onToggleDarkMode = onToggleDarkMode,
+                        onCloseDrawer = {
+                            scope.launch { drawerState.close() }
                         }
-                    }
-                )
-            },
-            floatingActionButton = {
-                FloatingActionButton(
-                    onClick = { showDialog = true }
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Ask Question")
+                    )
                 }
             }
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp)
-            ) {
-                Text(
-                    text = "Questions",
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
-                if (questions.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+        ) {
+            Scaffold(
+                topBar = {
+                    CenterAlignedTopAppBar(
+                        title = { Text("Questions") },
+                        navigationIcon = {
+                            IconButton(onClick = { finish() }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back"
+                                )
+                            }
+                        },
+                        actions = {
+                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                Icon(
+                                    imageVector = Icons.Default.Menu,
+                                    contentDescription = "Menu"
+                                )
+                            }
+                        }
+                    )
+                },
+                floatingActionButton = {
+                    FloatingActionButton(
+                        onClick = { showDialog = true }
                     ) {
-                        Text(
-                            text = "No questions yet. Be the first to ask!",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Icon(Icons.Default.Add, contentDescription = "Ask Question")
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(questions) { question ->
-                            QuestionCard(
-                                question = question,
-                                hasUpvoted = upvotedQuestions.contains(question.questionId),
-                                onSwipeRight = { upvoteQuestion(question.questionId) },
-                                onLongPress = {
-                                    selectedQuestion = question
-                                    showDetailsDialog = true
-                                }
+                }
+            ) { padding ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(16.dp)
+                ) {
+                    if (questions.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No questions yet. Be the first to ask!",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(questions) { question ->
+                                QuestionCard(
+                                    question = question,
+                                    hasUpvoted = upvotedQuestions.contains(question.questionId),
+                                    onSwipeRight = { upvoteQuestion(question.questionId) },
+                                    onLongPress = {
+                                        selectedQuestion = question
+                                        showDetailsDialog = true
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -213,6 +243,66 @@ class StudentActivity : ComponentActivity() {
             QuestionDetailsDialog(
                 question = selectedQuestion!!,
                 onDismiss = { showDetailsDialog = false }
+            )
+        }
+    }
+
+    @Composable
+    fun DrawerContent(
+        isDarkMode: Boolean,
+        onToggleDarkMode: () -> Unit,
+        onCloseDrawer: () -> Unit
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxHeight()
+                .padding(16.dp)
+        ) {
+            Text(
+                text = "Settings",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(bottom = 24.dp)
+            )
+
+            Divider()
+
+            Text(
+                text = "Accessibility",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(vertical = 16.dp)
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Dark Mode",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = if (isDarkMode) "Enabled" else "Disabled",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = isDarkMode,
+                    onCheckedChange = { onToggleDarkMode() }
+                )
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            Text(
+                text = "Current theme: ${if (isDarkMode) "Dark 🌙" else "Light ☀️"}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 8.dp)
             )
         }
     }
@@ -431,7 +521,6 @@ class StudentActivity : ComponentActivity() {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Upvote icon and count – clickable row
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -522,11 +611,9 @@ class StudentActivity : ComponentActivity() {
             val alreadyUpvoted = database.userUpvoteDao().hasUserUpvoted(userId, questionId)
 
             if (alreadyUpvoted) {
-                // REMOVE upvote: delete row + decrement counter
                 database.userUpvoteDao().removeUpvote(userId, questionId)
                 database.questionDao().removeUpvote(questionId)
 
-                // Optional: small vibration for feedback
                 if (vibrator.hasVibrator()) {
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                         vibrator.vibrate(
@@ -542,7 +629,6 @@ class StudentActivity : ComponentActivity() {
                 }
 
             } else {
-                // ADD upvote: insert row + increment counter
                 val upvote = UserUpvote(
                     userId = userId,
                     questionId = questionId

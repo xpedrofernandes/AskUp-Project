@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,7 +29,7 @@ class LecturerActivity : ComponentActivity() {
     private var sessionId: Int = 0
     private var userId: Int = 0
     private var username: String = "Lecturer"
-    private var role: String = "student"   // 👈 default, will be overwritten by Intent
+    private var role: String = "student"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,19 +41,28 @@ class LecturerActivity : ComponentActivity() {
         username = intent.getStringExtra("username") ?: "Lecturer"
         role = intent.getStringExtra("role") ?: "student"
 
-        // 🚫 Hard guard: if this user is not a lecturer, close this screen
         if (role != "lecturer") {
             finish()
             return
         }
 
         setContent {
-            MaterialTheme {
+            var isDarkMode by remember { mutableStateOf(ThemePreference.isDarkMode(this)) }
+
+            MaterialTheme(
+                colorScheme = if (isDarkMode) darkColorScheme() else lightColorScheme()
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    LecturerScreen()
+                    LecturerScreen(
+                        isDarkMode = isDarkMode,
+                        onToggleDarkMode = {
+                            isDarkMode = !isDarkMode
+                            ThemePreference.setDarkMode(this, isDarkMode)
+                        }
+                    )
                 }
             }
         }
@@ -85,14 +95,18 @@ class LecturerActivity : ComponentActivity() {
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun LecturerScreen() {
+    fun LecturerScreen(
+        isDarkMode: Boolean,
+        onToggleDarkMode: () -> Unit
+    ) {
         var questions by remember { mutableStateOf<List<Question>>(emptyList()) }
-
         var showAnswerDialog by remember { mutableStateOf(false) }
         var selectedQuestion by remember { mutableStateOf<Question?>(null) }
         var answerText by remember { mutableStateOf("") }
 
-        // Observe questions for this session
+        val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+        val scope = rememberCoroutineScope()
+
         LaunchedEffect(sessionId) {
             database.questionDao()
                 .getQuestionsForSession(sessionId)
@@ -101,66 +115,83 @@ class LecturerActivity : ComponentActivity() {
                 }
         }
 
-        Scaffold (
-            topBar = {
-                CenterAlignedTopAppBar(
-                    title = { Text("Lecturer view – $username") },
-                    navigationIcon = {
-                        IconButton(onClick = { finish() }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                ModalDrawerSheet {
+                    DrawerContent(
+                        isDarkMode = isDarkMode,
+                        onToggleDarkMode = onToggleDarkMode,
+                        onCloseDrawer = {
+                            scope.launch { drawerState.close() }
+                        }
+                    )
+                }
+            }
+        ) {
+            Scaffold (
+                topBar = {
+                    CenterAlignedTopAppBar(
+                        title = { Text("Lecturer view – $username") },
+                        navigationIcon = {
+                            IconButton(onClick = { finish() }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back"
+                                )
+                            }
+                        },
+                        actions = {
+                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                Icon(
+                                    imageVector = Icons.Default.Menu,
+                                    contentDescription = "Menu"
+                                )
+                            }
+                        }
+                    )
+                }
+            ) { padding ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = "Pin important questions and mark them as answered.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 16.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    if (questions.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No questions yet.",
+                                style = MaterialTheme.typography.bodyLarge
                             )
                         }
-                    }
-                )
-            }
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp)
-            ) {
-                Text(
-                    text = "Lecturer view – $username",
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                Text(
-                    text = "Pin important questions and mark them as answered.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(bottom = 16.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                if (questions.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No questions yet.",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(questions) { q ->
-                            LecturerQuestionCard(
-                                question = q,
-                                onToggleAnswered = { toggleAnswered(q) },
-                                onTogglePinned = { togglePin(q) },
-                                onEditAnswer = {
-                                    selectedQuestion = q
-                                    answerText = q.answer ?: ""
-                                    showAnswerDialog = true
-                                }
-                            )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(questions) { q ->
+                                LecturerQuestionCard(
+                                    question = q,
+                                    onToggleAnswered = { toggleAnswered(q) },
+                                    onTogglePinned = { togglePin(q) },
+                                    onEditAnswer = {
+                                        selectedQuestion = q
+                                        answerText = q.answer ?: ""
+                                        showAnswerDialog = true
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -182,6 +213,66 @@ class LecturerActivity : ComponentActivity() {
     }
 
     @Composable
+    fun DrawerContent(
+        isDarkMode: Boolean,
+        onToggleDarkMode: () -> Unit,
+        onCloseDrawer: () -> Unit
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxHeight()
+                .padding(16.dp)
+        ) {
+            Text(
+                text = "Settings",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(bottom = 24.dp)
+            )
+
+            Divider()
+
+            Text(
+                text = "Accessibility",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(vertical = 16.dp)
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Dark Mode",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = if (isDarkMode) "Enabled" else "Disabled",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = isDarkMode,
+                    onCheckedChange = { onToggleDarkMode() }
+                )
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            Text(
+                text = "Current theme: ${if (isDarkMode) "Dark 🌙" else "Light ☀️"}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
+
+    @Composable
     fun LecturerQuestionCard(
         question: Question,
         onToggleAnswered: () -> Unit,
@@ -193,15 +284,12 @@ class LecturerActivity : ComponentActivity() {
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-
-                // Question text
                 Text(
                     text = question.questionText,
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                // Meta row: upvotes + time
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -219,7 +307,6 @@ class LecturerActivity : ComponentActivity() {
                     )
                 }
 
-                // Status line: answered + pinned
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -244,7 +331,6 @@ class LecturerActivity : ComponentActivity() {
                     }
                 }
 
-                // Existing answer (if any)
                 if (question.answer != null) {
                     Text(
                         text = "Answer:",
@@ -258,7 +344,6 @@ class LecturerActivity : ComponentActivity() {
                     )
                 }
 
-                // Action buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -327,8 +412,6 @@ class LecturerActivity : ComponentActivity() {
         )
     }
 
-    // -------- helper DB functions --------
-
     private fun toggleAnswered(question: Question) {
         lifecycleScope.launch {
             val updated = question.copy(isAnswered = !question.isAnswered)
@@ -349,7 +432,6 @@ class LecturerActivity : ComponentActivity() {
         }
     }
 
-    // time formatting helper (same style as StudentActivity)
     private fun formatTime(timestamp: Long): String {
         val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
         return sdf.format(Date(timestamp))
