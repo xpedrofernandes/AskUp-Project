@@ -48,14 +48,25 @@ import java.util.Locale
 
 class StudentActivity : ComponentActivity() {
 
+    // Shared Room database instance used to load and update questions.
     private lateinit var database: AppDatabase
+
+    // Vibrator for small haptic feedback when a question is upvoted.
     private lateinit var vibrator: Vibrator
+
+    // Fused location client to resolve the city name once per screen.
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
+    // Session id identifies which lecture the student is currently in.
     private var sessionId: Int = 0
+
+    // Stores the current logged-in student id.
     private var userId: Int = 0
+
+    // Callback used to pass speech recognition text back into the dialog.
     private var speechResultCallback: ((String) -> Unit)? = null
 
+    // Launcher for the speech recognition intent, handled by Activity Result API.
     private val speechRecognizerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -69,19 +80,22 @@ class StudentActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Set up database and vibrator once when the activity is created.
         database = AppDatabase.getDatabase(applicationContext)
         vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 
         // Location client for GPS / network location.
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
+        // Read session and user details from MainActivity intent.
         sessionId = intent.getIntExtra("sessionId", 0)
         userId = intent.getIntExtra("userId", 0)
         val username = intent.getStringExtra("username") ?: "Student"
 
-        // Initial text for location label
+        // Initial text for location label before GPS resolves.
         val initialCityText = getString(R.string.location_locating)
 
+        // Compose UI setup with theme and location label.
         setContent {
             var isDarkMode by remember { mutableStateOf(ThemePreference.isDarkMode(this)) }
             var cityName by remember { mutableStateOf(initialCityText) }
@@ -104,6 +118,7 @@ class StudentActivity : ComponentActivity() {
                         username = username,
                         isDarkMode = isDarkMode,
                         onToggleDarkMode = {
+                            // Flip the flag and persist it for next app launch.
                             isDarkMode = !isDarkMode
                             ThemePreference.setDarkMode(this, isDarkMode)
                         },
@@ -142,6 +157,7 @@ class StudentActivity : ComponentActivity() {
     // Logs the user out by clearing the back stack and sending them to LoginActivity.
     private fun logoutAndReturnToLogin() {
         val intent = Intent(this, LoginActivity::class.java).apply {
+            // New task and clear task means the user cannot navigate back here.
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         startActivity(intent)
@@ -155,6 +171,7 @@ class StudentActivity : ComponentActivity() {
             Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
+        // If no permission yet, request it and return a fallback text.
         if (!hasPermission) {
             ActivityCompat.requestPermissions(
                 this,
@@ -165,10 +182,12 @@ class StudentActivity : ComponentActivity() {
             return
         }
 
+        // Uses last known location to keep battery usage low.
         fusedLocationClient.lastLocation
             .addOnSuccessListener { location ->
                 if (location != null) {
                     try {
+                        // Geocoder converts latitude/longitude into a human readable label.
                         val geocoder = Geocoder(this, Locale.getDefault())
                         val addresses = geocoder.getFromLocation(
                             location.latitude,
@@ -185,6 +204,7 @@ class StudentActivity : ComponentActivity() {
                             }
                         )
                     } catch (e: Exception) {
+                        // If geocoding fails, do not crash, just keep an unknown label.
                         onResult(getString(R.string.location_unknown))
                     }
                 } else {
@@ -192,6 +212,7 @@ class StudentActivity : ComponentActivity() {
                 }
             }
             .addOnFailureListener {
+                // Any error while reading location also falls back to unknown.
                 onResult(getString(R.string.location_unknown))
             }
     }
@@ -208,6 +229,7 @@ class StudentActivity : ComponentActivity() {
             grantResults.isNotEmpty() &&
             grantResults[0] == PackageManager.PERMISSION_GRANTED
         ) {
+            // Next time the composable runs, the city can be refreshed using this helper.
             fetchCityName { /* city is updated via LaunchedEffect next time */ }
         } else {
             // Permission denied – keep "Unknown city"
@@ -222,32 +244,43 @@ class StudentActivity : ComponentActivity() {
         onToggleDarkMode: () -> Unit,
         cityName: String
     ) {
+        // Holds the list of questions for the current session.
         var questions by remember { mutableStateOf<List<Question>>(emptyList()) }
+
+        // Tracks which question ids the current user has upvoted.
         var upvotedQuestions by remember { mutableStateOf<List<Int>>(emptyList()) }
+
+        // Controls visibility of the "Ask question" dialog.
         var showDialog by remember { mutableStateOf(false) }
+
+        // Controls visibility of the details dialog for a specific question.
         var showDetailsDialog by remember { mutableStateOf(false) }
+
+        // Stores the question currently selected for the details dialog.
         var selectedQuestion by remember { mutableStateOf<Question?>(null) }
 
         // FAQ dialog state for the drawer "FAQ" item.
         var showFaqDialog by remember { mutableStateOf(false) }
 
+        // Drawer state used for the side navigation (dark mode, FAQ, logout).
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
 
-        // Load questions from database, ordered with pinned first, then upvotes
+        // Load questions from database, ordered with pinned first, then upvotes.
         LaunchedEffect(sessionId) {
             database.questionDao().getQuestionsForSession(sessionId).collect { questionList ->
                 questions = questionList
             }
         }
 
-        // Load which questions this user has upvoted
+        // Load which questions this user has upvoted to colour the icons correctly.
         LaunchedEffect(userId) {
             database.userUpvoteDao().getUpvotedQuestions(userId).collect { upvotedList ->
                 upvotedQuestions = upvotedList
             }
         }
 
+        // Wraps the main student UI in a ModalNavigationDrawer.
         ModalNavigationDrawer(
             drawerState = drawerState,
             drawerContent = {
@@ -272,6 +305,7 @@ class StudentActivity : ComponentActivity() {
         ) {
             Scaffold(
                 topBar = {
+                    // Top app bar shows a generic title plus the city below it.
                     CenterAlignedTopAppBar(
                         title = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -284,6 +318,7 @@ class StudentActivity : ComponentActivity() {
                             }
                         },
                         navigationIcon = {
+                            // Back arrow just finishes this activity, returning to MainActivity.
                             IconButton(onClick = { finish() }) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -292,6 +327,7 @@ class StudentActivity : ComponentActivity() {
                             }
                         },
                         actions = {
+                            // Hamburger icon opens the drawer with theme and FAQ options.
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                 Icon(
                                     imageVector = Icons.Default.Menu,
@@ -304,6 +340,7 @@ class StudentActivity : ComponentActivity() {
                     )
                 },
                 floatingActionButton = {
+                    // FAB opens a dialog where the student can type or dictate a question.
                     FloatingActionButton(
                         onClick = { showDialog = true }
                     ) {
@@ -316,6 +353,7 @@ class StudentActivity : ComponentActivity() {
                     }
                 }
             ) { padding ->
+                // Main content area: either empty-state text or the list of questions.
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -334,6 +372,7 @@ class StudentActivity : ComponentActivity() {
                             )
                         }
                     } else {
+                        // Show all questions as cards, with swipe and long-press gestures.
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -355,6 +394,7 @@ class StudentActivity : ComponentActivity() {
             }
         }
 
+        // Dialog for asking a new question.
         if (showDialog) {
             AskQuestionDialog(
                 onDismiss = { showDialog = false },
@@ -368,6 +408,7 @@ class StudentActivity : ComponentActivity() {
             )
         }
 
+        // Dialog showing full details of a question (upvotes, status, answer).
         if (showDetailsDialog && selectedQuestion != null) {
             QuestionDetailsDialog(
                 question = selectedQuestion!!,
@@ -402,6 +443,7 @@ class StudentActivity : ComponentActivity() {
         onFaqClick: () -> Unit,
         onLogoutClick: () -> Unit
     ) {
+        // Drawer for student settings and quick actions.
         Column(
             modifier = Modifier
                 .fillMaxHeight()
@@ -421,6 +463,7 @@ class StudentActivity : ComponentActivity() {
                 modifier = Modifier.padding(vertical = 16.dp)
             )
 
+            // Dark mode switch and labels.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -452,6 +495,7 @@ class StudentActivity : ComponentActivity() {
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
+            // Quick summary of current theme for accessibility.
             Text(
                 text = stringResource(
                     if (isDarkMode) R.string.current_theme_dark
@@ -499,6 +543,7 @@ class StudentActivity : ComponentActivity() {
         onSubmit: (String) -> Unit,
         onMicClick: ((String) -> Unit) -> Unit
     ) {
+        // Local state for the text field inside the dialog.
         var questionText by remember { mutableStateOf("") }
 
         AlertDialog(
@@ -516,6 +561,7 @@ class StudentActivity : ComponentActivity() {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        // Text input for manual typing.
                         TextField(
                             value = questionText,
                             onValueChange = { questionText = it },
@@ -526,6 +572,7 @@ class StudentActivity : ComponentActivity() {
                             minLines = 3
                         )
 
+                        // Button that triggers speech recognition for convenience.
                         TextButton(
                             onClick = {
                                 onMicClick { spokenText ->
@@ -566,6 +613,7 @@ class StudentActivity : ComponentActivity() {
         question: Question,
         onDismiss: () -> Unit
     ) {
+        // Dialog that shows extra information about a question.
         AlertDialog(
             onDismissRequest = onDismiss,
             title = { Text(stringResource(R.string.student_details_title)) },
@@ -581,6 +629,7 @@ class StudentActivity : ComponentActivity() {
 
                     Divider()
 
+                    // Upvote statistics row.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -595,6 +644,7 @@ class StudentActivity : ComponentActivity() {
                         )
                     }
 
+                    // When it was posted, full date and time.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -609,6 +659,7 @@ class StudentActivity : ComponentActivity() {
                         )
                     }
 
+                    // Status text: answered vs pending.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -630,6 +681,7 @@ class StudentActivity : ComponentActivity() {
                         )
                     }
 
+                    // Pin state, only visible if the lecturer highlighted the question.
                     if (question.isHighlighted) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -647,6 +699,7 @@ class StudentActivity : ComponentActivity() {
                         }
                     }
 
+                    // Show the answer at the bottom if one exists.
                     if (question.answer != null) {
                         Divider()
                         Text(
@@ -676,11 +729,13 @@ class StudentActivity : ComponentActivity() {
         onSwipeRight: () -> Unit,
         onLongPress: () -> Unit
     ) {
+        // local drag offset to check if the user swiped far enough.
         var offsetX by remember { mutableStateOf(0f) }
 
         Card(
             modifier = Modifier
                 .fillMaxWidth()
+                // Horizontal drag is used as a gesture to upvote when moving to the right.
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
                         onDragEnd = {
@@ -694,6 +749,7 @@ class StudentActivity : ComponentActivity() {
                         }
                     )
                 }
+                // Long press anywhere on the card opens the details dialog.
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onLongPress = { onLongPress() }
@@ -704,6 +760,7 @@ class StudentActivity : ComponentActivity() {
             Column(
                 modifier = Modifier.padding(16.dp)
             ) {
+                // main question text the student entered.
                 Text(
                     text = question.questionText,
                     style = MaterialTheme.typography.bodyLarge,
@@ -740,6 +797,7 @@ class StudentActivity : ComponentActivity() {
                         )
                     }
 
+                    // Short label to indicate that the lecturer has answered this item.
                     if (question.isAnswered) {
                         Text(
                             text = stringResource(R.string.student_card_answered),
@@ -748,6 +806,7 @@ class StudentActivity : ComponentActivity() {
                         )
                     }
 
+                    // Text marker if the question is pinned.
                     if (question.isHighlighted) {
                         Text(
                             text = stringResource(R.string.student_card_pinned),
@@ -756,6 +815,7 @@ class StudentActivity : ComponentActivity() {
                         )
                     }
 
+                    // Time the question was posted, shown in a compact format.
                     Text(
                         text = formatTime(question.timestamp),
                         style = MaterialTheme.typography.bodySmall,
@@ -763,6 +823,7 @@ class StudentActivity : ComponentActivity() {
                     )
                 }
 
+                // If there is an answer, show it under a label on the card itself.
                 if (question.answer != null) {
                     Divider(modifier = Modifier.padding(vertical = 8.dp))
                     Text(
@@ -781,6 +842,7 @@ class StudentActivity : ComponentActivity() {
     }
 
     private fun startSpeechRecognition(callback: (String) -> Unit) {
+        // Store the callback so we can forward the result once the intent returns.
         speechResultCallback = callback
 
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -795,6 +857,7 @@ class StudentActivity : ComponentActivity() {
         try {
             speechRecognizerLauncher.launch(intent)
         } catch (e: Exception) {
+            // If speech services are not available, inform the user with a toast.
             Toast.makeText(
                 this,
                 getString(R.string.speech_not_available),
@@ -804,6 +867,7 @@ class StudentActivity : ComponentActivity() {
     }
 
     private fun postQuestion(questionText: String) {
+        // insert a new question in Room and trigger a local notification.
         lifecycleScope.launch {
             val newQuestion = Question(
                 sessionId = sessionId,
@@ -812,21 +876,22 @@ class StudentActivity : ComponentActivity() {
             )
             database.questionDao().insertQuestion(newQuestion)
 
-            // Show local notification that the question was posted
+            // Show local notification that the question was posted.
             NotificationHelper.showQuestionPosted(this@StudentActivity, questionText)
         }
     }
 
     private fun upvoteQuestion(questionId: Int) {
+        // Handles both adding and removing upvotes for the current user.
         lifecycleScope.launch {
             val alreadyUpvoted = database.userUpvoteDao().hasUserUpvoted(userId, questionId)
 
             if (alreadyUpvoted) {
-                // REMOVE upvote: delete row + decrement counter
+                // REMOVE upvote: delete row + decrement counter.
                 database.userUpvoteDao().removeUpvote(userId, questionId)
                 database.questionDao().removeUpvote(questionId)
 
-                // Optional: small vibration for feedback
+                // Optional: small vibration for feedback when removing a vote.
                 if (vibrator.hasVibrator()) {
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                         vibrator.vibrate(
@@ -842,7 +907,7 @@ class StudentActivity : ComponentActivity() {
                 }
 
             } else {
-                // ADD upvote: insert row + increment counter
+                // ADD upvote: insert row + increment counter.
                 val upvote = UserUpvote(
                     userId = userId,
                     questionId = questionId
@@ -850,6 +915,7 @@ class StudentActivity : ComponentActivity() {
                 database.userUpvoteDao().insertUpvote(upvote)
                 database.questionDao().upvoteQuestion(questionId)
 
+                // Slightly longer vibration when adding a vote.
                 if (vibrator.hasVibrator()) {
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                         vibrator.vibrate(
@@ -868,11 +934,13 @@ class StudentActivity : ComponentActivity() {
     }
 
     private fun formatTime(timestamp: Long): String {
+        // Formats time as HH:mm to keep the card footer compact.
         val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
         return sdf.format(Date(timestamp))
     }
 
     private fun formatFullTime(timestamp: Long): String {
+        // Formats full date and time for the details dialog.
         val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
         return sdf.format(Date(timestamp))
     }

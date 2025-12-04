@@ -23,14 +23,18 @@ import kotlinx.coroutines.launch
 
 class RegisterActivity : ComponentActivity() {
 
+    // Initialises a single instance of the Room database for this activity.
     private lateinit var database: AppDatabase
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // gets a handle to the shared database so we can insert new users.
         database = AppDatabase.getDatabase(applicationContext)
 
+        // Sets up the Compose UI tree with theme support.
         setContent {
+            // remembers the current theme preference across recompositions.
             var isDarkMode by remember { mutableStateOf(ThemePreference.isDarkMode(this)) }
 
             MaterialTheme(
@@ -40,6 +44,7 @@ class RegisterActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    // passes dark mode state and toggle into the registration screen.
                     RegisterScreen(
                         isDarkMode = isDarkMode,
                         onToggleDarkMode = {
@@ -58,22 +63,35 @@ class RegisterActivity : ComponentActivity() {
         isDarkMode: Boolean,
         onToggleDarkMode: () -> Unit
     ) {
+        // Stores the raw text input from the username field.
         var username by remember { mutableStateOf("") }
+
+        // holds the first password entry typed by the user.
         var password by remember { mutableStateOf("") }
+
+        // keeps the repeated password to check if both match.
         var confirmPassword by remember { mutableStateOf("") }
+
+        // default role is student; user can toggle to lecturer.
         var selectedRole by remember { mutableStateOf("student") }
+
+        // collects any validation or registration error to display on screen.
         var errorMessage by remember { mutableStateOf("") }
 
+        // controls the visibility of the instructions dialog from the drawer.
         var showInstructionsDialog by remember { mutableStateOf(false) }
 
+        // Localised error strings for different validation scenarios.
         val errorUsernameRequired = stringResource(R.string.register_error_username_required)
         val errorPasswordRequired = stringResource(R.string.register_error_password_required)
         val errorPasswordMismatch = stringResource(R.string.register_error_password_mismatch)
         val errorPasswordShort = stringResource(R.string.register_error_password_short)
 
+        // Drawer state manages open/close of the side navigation.
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
 
+        // Wraps the screen content with a modal navigation drawer.
         ModalNavigationDrawer(
             drawerState = drawerState,
             drawerContent = {
@@ -89,6 +107,7 @@ class RegisterActivity : ComponentActivity() {
         ) {
             Scaffold(
                 topBar = {
+                    // Configures the top app bar with back button and menu icon.
                     CenterAlignedTopAppBar(
                         title = { Text(stringResource(R.string.register_appbar_title)) },
                         navigationIcon = {
@@ -100,6 +119,7 @@ class RegisterActivity : ComponentActivity() {
                             }
                         },
                         actions = {
+                            // menu icon opens the drawer for accessibility and instructions.
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                 Icon(
                                     imageVector = Icons.Default.Menu,
@@ -110,6 +130,7 @@ class RegisterActivity : ComponentActivity() {
                     )
                 }
             ) { padding ->
+                // Places registration fields in the centre of the screen.
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -118,12 +139,14 @@ class RegisterActivity : ComponentActivity() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
+                    // header text makes it clear this screen creates new users.
                     Text(
                         text = stringResource(R.string.register_header),
                         style = MaterialTheme.typography.headlineMedium,
                         modifier = Modifier.padding(bottom = 32.dp)
                     )
 
+                    // Username field used as unique identifier for login.
                     TextField(
                         value = username,
                         onValueChange = { username = it },
@@ -134,6 +157,7 @@ class RegisterActivity : ComponentActivity() {
                         singleLine = true
                     )
 
+                    // First password entry, hidden for privacy.
                     TextField(
                         value = password,
                         onValueChange = { password = it },
@@ -145,6 +169,7 @@ class RegisterActivity : ComponentActivity() {
                         singleLine = true
                     )
 
+                    // Second password entry used to confirm the first one.
                     TextField(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it },
@@ -156,12 +181,14 @@ class RegisterActivity : ComponentActivity() {
                         singleLine = true
                     )
 
+                    // Text label before the radio buttons to explain user roles.
                     Text(
                         text = stringResource(R.string.register_role_prompt),
                         style = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
 
+                    // Row of radio buttons to choose between student and lecturer role.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center
@@ -185,6 +212,7 @@ class RegisterActivity : ComponentActivity() {
                         }
                     }
 
+                    // Shows validation feedback if something is wrong with the input.
                     if (errorMessage.isNotEmpty()) {
                         Text(
                             text = errorMessage,
@@ -193,6 +221,7 @@ class RegisterActivity : ComponentActivity() {
                         )
                     }
 
+                    // Main button validates input and, if correct, calls registerUser.
                     Button(
                         onClick = {
                             errorMessage = when {
@@ -200,8 +229,8 @@ class RegisterActivity : ComponentActivity() {
                                 password.isBlank() -> errorPasswordRequired
                                 password != confirmPassword -> errorPasswordMismatch
                                 password.length < 4 -> errorPasswordShort
-
                                 else -> {
+                                    // input is valid here, so we proceed with Room insert.
                                     registerUser(username, password, selectedRole)
                                     ""
                                 }
@@ -214,6 +243,7 @@ class RegisterActivity : ComponentActivity() {
                         Text(stringResource(R.string.register_button))
                     }
 
+                    // Allows the user to cancel registration and go back to login.
                     TextButton(
                         onClick = { finish() },
                         modifier = Modifier.padding(top = 8.dp)
@@ -224,6 +254,7 @@ class RegisterActivity : ComponentActivity() {
             }
         }
 
+        // instructions dialog provides a short explanation on how to use this screen.
         if (showInstructionsDialog) {
             AlertDialog(
                 onDismissRequest = { showInstructionsDialog = false },
@@ -247,6 +278,7 @@ class RegisterActivity : ComponentActivity() {
         onCloseDrawer: () -> Unit,
         onInstructionsClick: () -> Unit
     ) {
+        // Drawer content exposes settings and help before user is registered.
         Column(
             modifier = Modifier
                 .fillMaxHeight()
@@ -266,6 +298,7 @@ class RegisterActivity : ComponentActivity() {
                 modifier = Modifier.padding(vertical = 16.dp)
             )
 
+            // simple layout row for dark mode toggle option.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -284,6 +317,7 @@ class RegisterActivity : ComponentActivity() {
                     )
                 }
 
+                // switch that calls the shared toggle handler.
                 Switch(
                     checked = isDarkMode,
                     onCheckedChange = { onToggleDarkMode() }
@@ -292,6 +326,7 @@ class RegisterActivity : ComponentActivity() {
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
+            // text feedback shows which mode is currently active.
             Text(
                 text = stringResource(
                     if (isDarkMode) R.string.current_theme_dark else R.string.current_theme_light
@@ -301,6 +336,7 @@ class RegisterActivity : ComponentActivity() {
                 modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
             )
 
+            // clickable text opens the registration instructions dialog.
             Text(
                 text = stringResource(R.string.instructions_title),
                 style = MaterialTheme.typography.bodyLarge,
@@ -316,8 +352,10 @@ class RegisterActivity : ComponentActivity() {
     }
 
     private fun registerUser(username: String, password: String, role: String) {
+        // Uses lifecycleScope so database work runs off the main thread.
         lifecycleScope.launch {
             try {
+                // checks if the username is already stored in the local Room table.
                 if (database.userDao().usernameExists(username)) {
                     runOnUiThread {
                         Toast.makeText(
@@ -329,9 +367,13 @@ class RegisterActivity : ComponentActivity() {
                     return@launch
                 }
 
+                // builds a new user entity with the chosen role.
                 val newUser = User(username = username, password = password, role = role)
+
+                // inserts the new user into the database using the DAO.
                 database.userDao().insertUser(newUser)
 
+                // notifies user and returns to login screen on success.
                 runOnUiThread {
                     Toast.makeText(
                         this@RegisterActivity,
@@ -342,6 +384,7 @@ class RegisterActivity : ComponentActivity() {
                 }
 
             } catch (e: Exception) {
+                // generic error message in case something unexpected happens.
                 runOnUiThread {
                     Toast.makeText(
                         this@RegisterActivity,

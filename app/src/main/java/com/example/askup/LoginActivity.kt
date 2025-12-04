@@ -22,13 +22,16 @@ import kotlinx.coroutines.launch
 
 class LoginActivity : ComponentActivity() {
 
+    // Initialises the database so login checks can be made locally using Room.
     private lateinit var database: AppDatabase
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Loads the Room database instance for this Activity.
         database = AppDatabase.getDatabase(applicationContext)
 
+        // Compose UI root setup with theme selection applied before screens render.
         setContent {
             var isDarkMode by remember { mutableStateOf(ThemePreference.isDarkMode(this)) }
 
@@ -39,9 +42,11 @@ class LoginActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    // Displays the composable responsible for the login UI.
                     LoginScreen(
                         isDarkMode = isDarkMode,
                         onToggleDarkMode = {
+                            // Saves preference so theme stays when app restarts.
                             isDarkMode = !isDarkMode
                             ThemePreference.setDarkMode(this, isDarkMode)
                         }
@@ -57,19 +62,23 @@ class LoginActivity : ComponentActivity() {
         isDarkMode: Boolean,
         onToggleDarkMode: () -> Unit
     ) {
+        // Stores user input for the login attempt.
         val username = remember { mutableStateOf("") }
         val password = remember { mutableStateOf("") }
+
+        // Holds a short error message for missing fields or failure to authenticate.
         val errorMessage = remember { mutableStateOf("") }
 
-        // Get strings in composable context
         val errorMissingFields = stringResource(R.string.error_enter_username_password)
 
-        // Instructions dialog state for the drawer "Instructions" item.
+        // controls the instructions pop-up.
         var showInstructionsDialog by remember { mutableStateOf(false) }
 
+        // manages the drawer sliding animation and state.
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
 
+        // Wraps main screen with navigation drawer functionality.
         ModalNavigationDrawer(
             drawerState = drawerState,
             drawerContent = {
@@ -85,6 +94,7 @@ class LoginActivity : ComponentActivity() {
         ) {
             Scaffold(
                 topBar = {
+                    // Provides the top bar with title and a menu icon to open the drawer.
                     CenterAlignedTopAppBar(
                         title = { Text(stringResource(R.string.login_title)) },
                         actions = {
@@ -98,6 +108,7 @@ class LoginActivity : ComponentActivity() {
                     )
                 }
             ) { padding ->
+                // Main content of the login screen arranged vertically.
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -106,11 +117,13 @@ class LoginActivity : ComponentActivity() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
+                    // friendly welcome text for first-time users.
                     Text(
                         text = stringResource(R.string.login_welcome),
                         style = MaterialTheme.typography.headlineMedium
                     )
 
+                    // Username field, used as primary identifier.
                     TextField(
                         value = username.value,
                         onValueChange = { username.value = it },
@@ -119,6 +132,7 @@ class LoginActivity : ComponentActivity() {
                         singleLine = true
                     )
 
+                    // Password field, secured visually.
                     TextField(
                         value = password.value,
                         onValueChange = { password.value = it },
@@ -128,6 +142,7 @@ class LoginActivity : ComponentActivity() {
                         singleLine = true
                     )
 
+                    // Shows validation or authentication errors to guide the user.
                     if (errorMessage.value.isNotEmpty()) {
                         Text(
                             text = errorMessage.value,
@@ -136,13 +151,14 @@ class LoginActivity : ComponentActivity() {
                         )
                     }
 
+                    // Button attempts login only if required fields are filled.
                     Button(
                         onClick = {
                             if (username.value.isBlank() || password.value.isBlank()) {
-                                // Use the plain String here (no composable call)
+                                // Keeps text assignment outside composable reads.
                                 errorMessage.value = errorMissingFields
                             } else {
-                                // Try to login with database
+                                // Calls database authentication through repository functions.
                                 loginUser(username.value, password.value)
                             }
                         },
@@ -151,10 +167,10 @@ class LoginActivity : ComponentActivity() {
                         Text(text = stringResource(R.string.login_button))
                     }
 
+                    // Navigation to registration page for new users.
                     TextButton(
                         onClick = {
-                            val intent =
-                                Intent(this@LoginActivity, RegisterActivity::class.java)
+                            val intent = Intent(this@LoginActivity, RegisterActivity::class.java)
                             startActivity(intent)
                         },
                         modifier = Modifier.padding(top = 8.dp)
@@ -165,15 +181,13 @@ class LoginActivity : ComponentActivity() {
             }
         }
 
-        // Simple instructions dialog for the login screen.
+        // Optional help dialog clarifying what to do on the screen.
         if (showInstructionsDialog) {
             AlertDialog(
                 onDismissRequest = { showInstructionsDialog = false },
                 title = { Text(stringResource(R.string.instructions_title)) },
                 text = {
-                    Text(
-                        stringResource(R.string.login_instructions_text)
-                    )
+                    Text(stringResource(R.string.login_instructions_text))
                 },
                 confirmButton = {
                     TextButton(onClick = { showInstructionsDialog = false }) {
@@ -191,6 +205,7 @@ class LoginActivity : ComponentActivity() {
         onCloseDrawer: () -> Unit,
         onInstructionsClick: () -> Unit
     ) {
+        // Drawer gives accessibility options before login.
         Column(
             modifier = Modifier
                 .fillMaxHeight()
@@ -210,6 +225,7 @@ class LoginActivity : ComponentActivity() {
                 modifier = Modifier.padding(vertical = 16.dp)
             )
 
+            // Toggle for dark/light theme at login, saved immediately to preferences.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -241,6 +257,7 @@ class LoginActivity : ComponentActivity() {
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
+            // Quick theme feedback keeping the user aware visually.
             Text(
                 text = stringResource(
                     if (isDarkMode) R.string.current_theme_dark else R.string.current_theme_light
@@ -250,6 +267,7 @@ class LoginActivity : ComponentActivity() {
                 modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
             )
 
+            // Opens instructional dialog.
             Text(
                 text = stringResource(R.string.instructions_title),
                 style = MaterialTheme.typography.bodyLarge,
@@ -265,12 +283,14 @@ class LoginActivity : ComponentActivity() {
     }
 
     private fun loginUser(username: String, password: String) {
+        // Launches in coroutines to avoid blocking the UI while querying database.
         lifecycleScope.launch {
             try {
+                // checks the local user table for matching credentials.
                 val user = database.userDao().loginUser(username, password)
 
                 if (user != null) {
-                    // Login successful
+                    // If login is valid, user object contains role and user ID.
                     runOnUiThread {
                         Toast.makeText(
                             this@LoginActivity,
@@ -278,6 +298,7 @@ class LoginActivity : ComponentActivity() {
                             Toast.LENGTH_SHORT
                         ).show()
 
+                        // Redirects to home screen with user context.
                         val intent = Intent(this@LoginActivity, MainActivity::class.java)
                         intent.putExtra("username", user.username)
                         intent.putExtra("userId", user.userId)
@@ -286,7 +307,7 @@ class LoginActivity : ComponentActivity() {
                         finish()
                     }
                 } else {
-                    // Login failed
+                    // If credentials are invalid, gives user feedback.
                     runOnUiThread {
                         Toast.makeText(
                             this@LoginActivity,
@@ -296,6 +317,7 @@ class LoginActivity : ComponentActivity() {
                     }
                 }
             } catch (e: Exception) {
+                // Shows a generic message if there is an unexpected failure.
                 runOnUiThread {
                     Toast.makeText(
                         this@LoginActivity,

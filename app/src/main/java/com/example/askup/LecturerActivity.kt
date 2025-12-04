@@ -35,10 +35,19 @@ import java.util.Locale
 
 class LecturerActivity : ComponentActivity() {
 
+    // Holds a reference to the Room database, shared across the activity.
     private lateinit var database: AppDatabase
+
+    // Stores the current session id; used for filtering questions.
     private var sessionId: Int = 0
+
+    // keeps track of which lecturer is viewing this screen.
     private var userId: Int = 0
+
+    // simple copy of the lecturer name to show in the toolbar.
     private var username: String = "Lecturer"
+
+    // role is passed in so the activity can guard against wrong access.
     private var role: String = "student"
 
     // Location client used to get the last known location for displaying city name.
@@ -47,13 +56,16 @@ class LecturerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // gets the singleton Room database instance for queries and updates.
         database = AppDatabase.getDatabase(applicationContext)
 
+        // Reads the session and user data that were sent from MainActivity.
         sessionId = intent.getIntExtra("sessionId", 0)
         userId = intent.getIntExtra("userId", 0)
         username = intent.getStringExtra("username") ?: "Lecturer"
         role = intent.getStringExtra("role") ?: "student"
 
+        // basic guard: if somehow a student opens this activity, just close it.
         if (role != "lecturer") {
             finish()
             return
@@ -62,6 +74,7 @@ class LecturerActivity : ComponentActivity() {
         // Initialise fused location client used for GPS / city name feature.
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
+        // Sets up Compose UI with theme support and passes down dark mode state.
         setContent {
             var isDarkMode by remember { mutableStateOf(ThemePreference.isDarkMode(this)) }
 
@@ -75,6 +88,7 @@ class LecturerActivity : ComponentActivity() {
                     LecturerScreen(
                         isDarkMode = isDarkMode,
                         onToggleDarkMode = {
+                            // when user toggles, flip the flag and persist it in preferences.
                             isDarkMode = !isDarkMode
                             ThemePreference.setDarkMode(this, isDarkMode)
                         }
@@ -112,6 +126,7 @@ class LecturerActivity : ComponentActivity() {
     // Logs the lecturer out by clearing the back stack and sending them to LoginActivity.
     private fun logoutAndReturnToLogin() {
         val intent = Intent(this, LoginActivity::class.java).apply {
+            // Starts a fresh task so the user cannot navigate back into the session.
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         startActivity(intent)
@@ -131,6 +146,7 @@ class LecturerActivity : ComponentActivity() {
             Manifest.permission.ACCESS_COARSE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
+        // if no location permission is granted, request it and fall back to "Unknown".
         if (!fineGranted && !coarseGranted) {
             ActivityCompat.requestPermissions(
                 this,
@@ -144,10 +160,12 @@ class LecturerActivity : ComponentActivity() {
             return
         }
 
+        // Uses the last known location to avoid heavy GPS work.
         fusedLocationClient.lastLocation
             .addOnSuccessListener { location ->
                 if (location != null) {
                     try {
+                        // Geocoder translates latitude/longitude into a readable address.
                         val geocoder = Geocoder(this, Locale.getDefault())
                         val addresses = geocoder.getFromLocation(
                             location.latitude,
@@ -159,6 +177,7 @@ class LecturerActivity : ComponentActivity() {
                         val city = address?.locality ?: address?.subAdminArea
                         val country = address?.countryCode
 
+                        // Builds a label like "Dublin, IE" or falls back if data is missing.
                         val label = if (!city.isNullOrBlank() && !country.isNullOrBlank()) {
                             "$city, $country"
                         } else {
@@ -166,13 +185,16 @@ class LecturerActivity : ComponentActivity() {
                         }
                         onResult(label)
                     } catch (e: Exception) {
+                        // in case geocoder fails, keep the UI consistent with an unknown value.
                         onResult(getString(R.string.location_unknown))
                     }
                 } else {
+                    // no last location is available, so we just show the fallback.
                     onResult(getString(R.string.location_unknown))
                 }
             }
             .addOnFailureListener {
+                // if the location API fails, do not crash the UI – just show fallback.
                 onResult(getString(R.string.location_unknown))
             }
     }
@@ -190,7 +212,8 @@ class LecturerActivity : ComponentActivity() {
             grantResults.isNotEmpty() &&
             grantResults[0] == PackageManager.PERMISSION_GRANTED
         ) {
-            fetchCityName { /* no-op here */ }
+            // Once permission is granted, we can re-trigger the city lookup.
+            fetchCityName { /* UI state is updated in the composable via callback. */ }
         } else {
             // Permission denied – optional: keep "Unknown city" label.
         }
@@ -202,9 +225,16 @@ class LecturerActivity : ComponentActivity() {
         isDarkMode: Boolean,
         onToggleDarkMode: () -> Unit
     ) {
+        // Holds the questions for this session, coming from the Room Flow.
         var questions by remember { mutableStateOf<List<Question>>(emptyList()) }
+
+        // Controls whether the answer dialog is visible.
         var showAnswerDialog by remember { mutableStateOf(false) }
+
+        // Keeps a reference to the question currently being edited.
         var selectedQuestion by remember { mutableStateOf<Question?>(null) }
+
+        // stores the answer text being typed by the lecturer.
         var answerText by remember { mutableStateOf("") }
 
         // Instructions dialog state for the drawer "Instructions" item.
@@ -213,9 +243,11 @@ class LecturerActivity : ComponentActivity() {
         // City name shown under the title, populated from GPS.
         var cityName by remember { mutableStateOf("Locating...") }
 
+        // Drawer state controls the hamburger menu sliding sheet.
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
 
+        // Collects all questions for the current session from the database.
         LaunchedEffect(sessionId) {
             database.questionDao()
                 .getQuestionsForSession(sessionId)
@@ -231,6 +263,7 @@ class LecturerActivity : ComponentActivity() {
             }
         }
 
+        // Wraps the main UI in a navigation drawer for settings and logout.
         ModalNavigationDrawer(
             drawerState = drawerState,
             drawerContent = {
@@ -253,6 +286,7 @@ class LecturerActivity : ComponentActivity() {
         ) {
             Scaffold(
                 topBar = {
+                    // Top bar shows lecturer name and the city location under it.
                     CenterAlignedTopAppBar(
                         title = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -270,6 +304,7 @@ class LecturerActivity : ComponentActivity() {
                             }
                         },
                         navigationIcon = {
+                            // back arrow returns to main screen without logging out completely.
                             IconButton(onClick = { finish() }) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -278,6 +313,7 @@ class LecturerActivity : ComponentActivity() {
                             }
                         },
                         actions = {
+                            // menu button opens the drawer with dark mode and instructions.
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                 Icon(
                                     imageVector = Icons.Default.Menu,
@@ -290,12 +326,14 @@ class LecturerActivity : ComponentActivity() {
                     )
                 }
             ) { padding ->
+                // Main content column for lecturer tools.
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding)
                         .padding(16.dp)
                 ) {
+                    // short explanation of what the lecturer can do on this screen.
                     Text(
                         text = stringResource(id = R.string.lecturer_intro_text),
                         style = MaterialTheme.typography.bodyMedium,
@@ -304,6 +342,7 @@ class LecturerActivity : ComponentActivity() {
                     )
 
                     if (questions.isEmpty()) {
+                        // simple fallback if no one has asked anything yet.
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
@@ -314,6 +353,7 @@ class LecturerActivity : ComponentActivity() {
                             )
                         }
                     } else {
+                        // List of all questions with pin/answer actions for each card.
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -336,6 +376,7 @@ class LecturerActivity : ComponentActivity() {
             }
         }
 
+        // Dialog used for adding or editing an answer to a selected question.
         if (showAnswerDialog && selectedQuestion != null) {
             AnswerDialog(
                 question = selectedQuestion!!,
@@ -376,6 +417,7 @@ class LecturerActivity : ComponentActivity() {
         onInstructionsClick: () -> Unit,
         onLogoutClick: () -> Unit
     ) {
+        // Drawer for lecturer settings: dark mode, help, logout.
         Column(
             modifier = Modifier
                 .fillMaxHeight()
@@ -395,6 +437,7 @@ class LecturerActivity : ComponentActivity() {
                 modifier = Modifier.padding(vertical = 16.dp)
             )
 
+            // Row grouping the dark mode label and the actual switch.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -416,6 +459,7 @@ class LecturerActivity : ComponentActivity() {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                // Switch toggles theme and persists it via the callback.
                 Switch(
                     checked = isDarkMode,
                     onCheckedChange = {
@@ -426,6 +470,7 @@ class LecturerActivity : ComponentActivity() {
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
+            // Text label shows a quick summary of the current theme.
             Text(
                 text = stringResource(
                     id = if (isDarkMode)
@@ -476,17 +521,20 @@ class LecturerActivity : ComponentActivity() {
         onTogglePinned: () -> Unit,
         onEditAnswer: () -> Unit
     ) {
+        // Card summarises a single question with metadata and actions.
         Card(
             modifier = Modifier.fillMaxWidth(),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
+                // main question text as entered by the student.
                 Text(
                     text = question.questionText,
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
+                // Shows current upvotes and posting time.
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -504,6 +552,7 @@ class LecturerActivity : ComponentActivity() {
                     )
                 }
 
+                // Displays status ("Answered" / "Pending") and pin state.
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -533,6 +582,7 @@ class LecturerActivity : ComponentActivity() {
                     }
                 }
 
+                // if the question already has an answer, show it under a label.
                 if (question.answer != null) {
                     Text(
                         text = stringResource(id = R.string.lecturer_answer_label),
@@ -546,11 +596,13 @@ class LecturerActivity : ComponentActivity() {
                     )
                 }
 
+                // Action row: mark answered, pin/unpin, and add/edit answer.
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // toggles the answered/pending flag in the database.
                     TextButton(onClick = onToggleAnswered) {
                         Text(
                             text = if (question.isAnswered)
@@ -560,6 +612,7 @@ class LecturerActivity : ComponentActivity() {
                         )
                     }
 
+                    // toggles the highlighted field so the question can be pinned.
                     TextButton(onClick = onTogglePinned) {
                         Text(
                             text = if (question.isHighlighted)
@@ -569,6 +622,7 @@ class LecturerActivity : ComponentActivity() {
                         )
                     }
 
+                    // opens the dialog to enter or edit the text of an answer.
                     Button(onClick = onEditAnswer) {
                         Text(
                             text = if (question.answer == null)
@@ -591,11 +645,13 @@ class LecturerActivity : ComponentActivity() {
         onDismiss: () -> Unit,
         onSave: () -> Unit
     ) {
+        // Dialog for typing the lecturer's answer with validation on empty text.
         AlertDialog(
             onDismissRequest = onDismiss,
             title = { Text(stringResource(id = R.string.lecturer_answer_dialog_title)) },
             text = {
                 Column {
+                    // show the original question so the lecturer has context.
                     Text(
                         text = question.questionText,
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -622,6 +678,7 @@ class LecturerActivity : ComponentActivity() {
     }
 
     private fun toggleAnswered(question: Question) {
+        // uses coroutine scope attached to the lifecycle to update Room.
         lifecycleScope.launch {
             val updated = question.copy(isAnswered = !question.isAnswered)
             database.questionDao().updateQuestion(updated)
@@ -629,6 +686,7 @@ class LecturerActivity : ComponentActivity() {
     }
 
     private fun togglePin(question: Question) {
+        // flips the highlighted flag in the database, used for pinning.
         lifecycleScope.launch {
             val newState = !question.isHighlighted
             database.questionDao().setHighlighted(question.questionId, newState)
@@ -636,12 +694,14 @@ class LecturerActivity : ComponentActivity() {
     }
 
     private fun setAnswer(questionId: Int, answer: String) {
+        // saves or updates the answer text for a question in Room.
         lifecycleScope.launch {
             database.questionDao().answerQuestion(questionId, answer)
         }
     }
 
     private fun formatTime(timestamp: Long): String {
+        // formats timestamps as HH:mm so they are easy to read during a lecture.
         val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
         return sdf.format(Date(timestamp))
     }
