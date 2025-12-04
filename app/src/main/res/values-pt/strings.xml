@@ -113,6 +113,7 @@
     <string name="student_card_pinned">📌 Fixada</string>
     <string name="student_faq_title">FAQ</string>
     <string name="student_faq_text">Desliza para a direita ou toca no ícone de gosto para votar nas perguntas.\n\nMantém o dedo pressionado numa carta para ver os detalhes completos.\n\nUsa o menu Definições para alternar entre modo claro e escuro.</string>
+    <string name="notification_question_posted_title">Nova Pergunta</string>
 
     <!-- Speech recognition -->
     <string name="speech_prompt">Diz a tua pergunta</string>

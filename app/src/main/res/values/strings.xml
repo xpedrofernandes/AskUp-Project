@@ -113,6 +113,7 @@
     <string name="student_card_pinned">📌 Pinned</string>
     <string name="student_faq_title">FAQ</string>
     <string name="student_faq_text">Swipe right or tap the thumbs-up icon to upvote questions.\n\nLong-press a card to see full question details.\n\nUse the Settings menu to switch between light and dark mode.</string>
+    <string name="notification_question_posted_title">Question posted</string>
 
     <!-- Speech recognition -->
     <string name="speech_prompt">Speak your question</string>

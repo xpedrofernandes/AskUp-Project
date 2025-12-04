@@ -811,6 +811,9 @@ class StudentActivity : ComponentActivity() {
                 questionText = questionText
             )
             database.questionDao().insertQuestion(newQuestion)
+
+            // Show local notification that the question was posted
+            NotificationHelper.showQuestionPosted(this@StudentActivity, questionText)
         }
     }
 
