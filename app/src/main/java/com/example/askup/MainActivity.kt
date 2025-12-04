@@ -81,7 +81,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestNotificationPermissionIfNeeded() {
-        // Checks the notification permission only on Android 13 and above, earlier versions do not need it.
+        // Checks the notification permission
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val permission = Manifest.permission.POST_NOTIFICATIONS
             val granted = ContextCompat.checkSelfPermission(this, permission)
@@ -553,6 +553,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Callback
     override fun onStart() {
         super.onStart()
         println("MainActivity: onStart - Activity is visible")

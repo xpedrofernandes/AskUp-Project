@@ -14,7 +14,7 @@ object SessionPreference {
     /**
      * Saves a session entry for a specific user:
      *  - session id: identifies which active session (lecture)
-     *  - code: code student used to join (optional display / recovery)
+     *  - code: code student used to join
      */
     fun saveSession(context: Context, userId: Int, sessionId: Int, code: String) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

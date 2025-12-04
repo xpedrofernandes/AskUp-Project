@@ -98,6 +98,7 @@ class LecturerActivity : ComponentActivity() {
         }
     }
 
+    // Callbacks
     override fun onStart() {
         super.onStart()
         println("LecturerActivity: onStart - Activity is visible")
