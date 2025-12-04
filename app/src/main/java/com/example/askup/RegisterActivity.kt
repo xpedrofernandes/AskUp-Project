@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
@@ -65,6 +66,11 @@ class RegisterActivity : ComponentActivity() {
 
         var showInstructionsDialog by remember { mutableStateOf(false) }
 
+        val errorUsernameRequired = stringResource(R.string.register_error_username_required)
+        val errorPasswordRequired = stringResource(R.string.register_error_password_required)
+        val errorPasswordMismatch = stringResource(R.string.register_error_password_mismatch)
+        val errorPasswordShort = stringResource(R.string.register_error_password_short)
+
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
 
@@ -84,12 +90,12 @@ class RegisterActivity : ComponentActivity() {
             Scaffold(
                 topBar = {
                     CenterAlignedTopAppBar(
-                        title = { Text("Create account") },
+                        title = { Text(stringResource(R.string.register_appbar_title)) },
                         navigationIcon = {
                             IconButton(onClick = { finish() }) {
                                 Icon(
                                     imageVector = Icons.Filled.ArrowBack,
-                                    contentDescription = "Back"
+                                    contentDescription = stringResource(R.string.back_content_description)
                                 )
                             }
                         },
@@ -97,7 +103,7 @@ class RegisterActivity : ComponentActivity() {
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                 Icon(
                                     imageVector = Icons.Default.Menu,
-                                    contentDescription = "Menu"
+                                    contentDescription = stringResource(R.string.menu_content_description)
                                 )
                             }
                         }
@@ -113,7 +119,7 @@ class RegisterActivity : ComponentActivity() {
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = "Create Account",
+                        text = stringResource(R.string.register_header),
                         style = MaterialTheme.typography.headlineMedium,
                         modifier = Modifier.padding(bottom = 32.dp)
                     )
@@ -121,7 +127,7 @@ class RegisterActivity : ComponentActivity() {
                     TextField(
                         value = username,
                         onValueChange = { username = it },
-                        label = { Text("Username") },
+                        label = { Text(stringResource(R.string.register_username_label)) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 8.dp),
@@ -131,7 +137,7 @@ class RegisterActivity : ComponentActivity() {
                     TextField(
                         value = password,
                         onValueChange = { password = it },
-                        label = { Text("Password") },
+                        label = { Text(stringResource(R.string.register_password_label)) },
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -142,7 +148,7 @@ class RegisterActivity : ComponentActivity() {
                     TextField(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it },
-                        label = { Text("Confirm Password") },
+                        label = { Text(stringResource(R.string.register_confirm_password_label)) },
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -151,7 +157,7 @@ class RegisterActivity : ComponentActivity() {
                     )
 
                     Text(
-                        text = "I am a:",
+                        text = stringResource(R.string.register_role_prompt),
                         style = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
@@ -165,7 +171,7 @@ class RegisterActivity : ComponentActivity() {
                                 selected = selectedRole == "student",
                                 onClick = { selectedRole = "student" }
                             )
-                            Text("Student")
+                            Text(stringResource(R.string.register_role_student))
                         }
 
                         Spacer(modifier = Modifier.width(16.dp))
@@ -175,7 +181,7 @@ class RegisterActivity : ComponentActivity() {
                                 selected = selectedRole == "lecturer",
                                 onClick = { selectedRole = "lecturer" }
                             )
-                            Text("Lecturer")
+                            Text(stringResource(R.string.register_role_lecturer))
                         }
                     }
 
@@ -189,28 +195,30 @@ class RegisterActivity : ComponentActivity() {
 
                     Button(
                         onClick = {
-                            when {
-                                username.isBlank() -> errorMessage = "Please enter a username"
-                                password.isBlank() -> errorMessage = "Please enter a password"
-                                password != confirmPassword -> errorMessage =
-                                    "Passwords don't match"
-                                password.length < 4 -> errorMessage =
-                                    "Password must be at least 4 characters"
-                                else -> registerUser(username, password, selectedRole)
+                            errorMessage = when {
+                                username.isBlank() -> errorUsernameRequired
+                                password.isBlank() -> errorPasswordRequired
+                                password != confirmPassword -> errorPasswordMismatch
+                                password.length < 4 -> errorPasswordShort
+
+                                else -> {
+                                    registerUser(username, password, selectedRole)
+                                    ""
+                                }
                             }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 16.dp)
                     ) {
-                        Text("Register")
+                        Text(stringResource(R.string.register_button))
                     }
 
                     TextButton(
                         onClick = { finish() },
                         modifier = Modifier.padding(top = 8.dp)
                     ) {
-                        Text("Already have an account? Login")
+                        Text(stringResource(R.string.register_login_prompt))
                     }
                 }
             }
@@ -219,11 +227,13 @@ class RegisterActivity : ComponentActivity() {
         if (showInstructionsDialog) {
             AlertDialog(
                 onDismissRequest = { showInstructionsDialog = false },
-                title = { Text("Instructions") },
-                text = { Text("Fill in your details and choose a role to create your account.") },
+                title = { Text(stringResource(R.string.instructions_title)) },
+                text = {
+                    Text(stringResource(R.string.register_instructions))
+                },
                 confirmButton = {
                     TextButton(onClick = { showInstructionsDialog = false }) {
-                        Text("Close")
+                        Text(stringResource(R.string.close_button))
                     }
                 }
             )
@@ -243,7 +253,7 @@ class RegisterActivity : ComponentActivity() {
                 .padding(16.dp)
         ) {
             Text(
-                text = "Settings",
+                text = stringResource(R.string.settings_title),
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
@@ -251,7 +261,7 @@ class RegisterActivity : ComponentActivity() {
             Divider()
 
             Text(
-                text = "Accessibility",
+                text = stringResource(R.string.accessibility_title),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(vertical = 16.dp)
             )
@@ -264,9 +274,12 @@ class RegisterActivity : ComponentActivity() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("Dark Mode")
+                    Text(stringResource(R.string.dark_mode_label))
                     Text(
-                        text = if (isDarkMode) "Enabled" else "Disabled",
+                        text = if (isDarkMode)
+                            stringResource(R.string.dark_mode_enabled)
+                        else
+                            stringResource(R.string.dark_mode_disabled),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -280,14 +293,16 @@ class RegisterActivity : ComponentActivity() {
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             Text(
-                text = "Current theme: ${if (isDarkMode) "Dark 🌙" else "Light ☀️"}",
+                text = stringResource(
+                    if (isDarkMode) R.string.current_theme_dark else R.string.current_theme_light
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
             )
 
             Text(
-                text = "Instructions",
+                text = stringResource(R.string.instructions_title),
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -307,7 +322,7 @@ class RegisterActivity : ComponentActivity() {
                     runOnUiThread {
                         Toast.makeText(
                             this@RegisterActivity,
-                            "Username already taken",
+                            getString(R.string.register_username_taken),
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -320,7 +335,7 @@ class RegisterActivity : ComponentActivity() {
                 runOnUiThread {
                     Toast.makeText(
                         this@RegisterActivity,
-                        "Registration successful!",
+                        getString(R.string.register_success),
                         Toast.LENGTH_SHORT
                     ).show()
                     finish()
@@ -330,7 +345,7 @@ class RegisterActivity : ComponentActivity() {
                 runOnUiThread {
                     Toast.makeText(
                         this@RegisterActivity,
-                        "Error: ${e.message}",
+                        getString(R.string.register_error_generic, e.message),
                         Toast.LENGTH_SHORT
                     ).show()
                 }

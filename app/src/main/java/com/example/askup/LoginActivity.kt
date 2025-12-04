@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
@@ -60,6 +61,9 @@ class LoginActivity : ComponentActivity() {
         val password = remember { mutableStateOf("") }
         val errorMessage = remember { mutableStateOf("") }
 
+        // Get strings in composable context
+        val errorMissingFields = stringResource(R.string.error_enter_username_password)
+
         // Instructions dialog state for the drawer "Instructions" item.
         var showInstructionsDialog by remember { mutableStateOf(false) }
 
@@ -82,12 +86,12 @@ class LoginActivity : ComponentActivity() {
             Scaffold(
                 topBar = {
                     CenterAlignedTopAppBar(
-                        title = { Text("AskUp Login") },
+                        title = { Text(stringResource(R.string.login_title)) },
                         actions = {
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                 Icon(
                                     imageVector = Icons.Default.Menu,
-                                    contentDescription = "Menu"
+                                    contentDescription = stringResource(R.string.menu_content_description)
                                 )
                             }
                         }
@@ -103,14 +107,14 @@ class LoginActivity : ComponentActivity() {
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = "Welcome to AskUp",
+                        text = stringResource(R.string.login_welcome),
                         style = MaterialTheme.typography.headlineMedium
                     )
 
                     TextField(
                         value = username.value,
                         onValueChange = { username.value = it },
-                        label = { Text("Username") },
+                        label = { Text(stringResource(R.string.username_label)) },
                         modifier = Modifier.padding(top = 16.dp),
                         singleLine = true
                     )
@@ -118,7 +122,7 @@ class LoginActivity : ComponentActivity() {
                     TextField(
                         value = password.value,
                         onValueChange = { password.value = it },
-                        label = { Text("Password") },
+                        label = { Text(stringResource(R.string.password_label)) },
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.padding(top = 8.dp),
                         singleLine = true
@@ -135,7 +139,8 @@ class LoginActivity : ComponentActivity() {
                     Button(
                         onClick = {
                             if (username.value.isBlank() || password.value.isBlank()) {
-                                errorMessage.value = "Please enter username and password"
+                                // Use the plain String here (no composable call)
+                                errorMessage.value = errorMissingFields
                             } else {
                                 // Try to login with database
                                 loginUser(username.value, password.value)
@@ -143,7 +148,7 @@ class LoginActivity : ComponentActivity() {
                         },
                         modifier = Modifier.padding(top = 16.dp)
                     ) {
-                        Text(text = "Login")
+                        Text(text = stringResource(R.string.login_button))
                     }
 
                     TextButton(
@@ -154,7 +159,7 @@ class LoginActivity : ComponentActivity() {
                         },
                         modifier = Modifier.padding(top = 8.dp)
                     ) {
-                        Text("Don't have an account? Register")
+                        Text(stringResource(R.string.login_register_prompt))
                     }
                 }
             }
@@ -164,16 +169,15 @@ class LoginActivity : ComponentActivity() {
         if (showInstructionsDialog) {
             AlertDialog(
                 onDismissRequest = { showInstructionsDialog = false },
-                title = { Text("Instructions") },
+                title = { Text(stringResource(R.string.instructions_title)) },
                 text = {
                     Text(
-                        "Enter your AskUp username and password to sign in.\n\n" +
-                                "Use the menu to switch between light and dark mode."
+                        stringResource(R.string.login_instructions_text)
                     )
                 },
                 confirmButton = {
                     TextButton(onClick = { showInstructionsDialog = false }) {
-                        Text("Close")
+                        Text(stringResource(R.string.close_button))
                     }
                 }
             )
@@ -193,7 +197,7 @@ class LoginActivity : ComponentActivity() {
                 .padding(16.dp)
         ) {
             Text(
-                text = "Settings",
+                text = stringResource(R.string.settings_title),
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
@@ -201,7 +205,7 @@ class LoginActivity : ComponentActivity() {
             Divider()
 
             Text(
-                text = "Accessibility",
+                text = stringResource(R.string.accessibility_title),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(vertical = 16.dp)
             )
@@ -215,11 +219,14 @@ class LoginActivity : ComponentActivity() {
             ) {
                 Column {
                     Text(
-                        text = "Dark Mode",
+                        text = stringResource(R.string.dark_mode_label),
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(
-                        text = if (isDarkMode) "Enabled" else "Disabled",
+                        text = if (isDarkMode)
+                            stringResource(R.string.dark_mode_enabled)
+                        else
+                            stringResource(R.string.dark_mode_disabled),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -235,14 +242,16 @@ class LoginActivity : ComponentActivity() {
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             Text(
-                text = "Current theme: ${if (isDarkMode) "Dark 🌙" else "Light ☀️"}",
+                text = stringResource(
+                    if (isDarkMode) R.string.current_theme_dark else R.string.current_theme_light
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
             )
 
             Text(
-                text = "Instructions",
+                text = stringResource(R.string.instructions_title),
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -265,7 +274,7 @@ class LoginActivity : ComponentActivity() {
                     runOnUiThread {
                         Toast.makeText(
                             this@LoginActivity,
-                            "Welcome back, ${user.username}!",
+                            getString(R.string.login_welcome_back, user.username),
                             Toast.LENGTH_SHORT
                         ).show()
 
@@ -281,7 +290,7 @@ class LoginActivity : ComponentActivity() {
                     runOnUiThread {
                         Toast.makeText(
                             this@LoginActivity,
-                            "Invalid username or password",
+                            getString(R.string.login_invalid_credentials),
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -290,7 +299,7 @@ class LoginActivity : ComponentActivity() {
                 runOnUiThread {
                     Toast.makeText(
                         this@LoginActivity,
-                        "Login error: ${e.message}",
+                        getString(R.string.login_error_generic, e.message),
                         Toast.LENGTH_SHORT
                     ).show()
                 }

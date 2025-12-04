@@ -16,6 +16,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.example.askup.database.AppDatabase
@@ -40,7 +41,6 @@ class MainActivity : ComponentActivity() {
         createTestSession(userId)
 
         setContent {
-            // Persisted dark mode preference (state management + accessibility).
             var isDarkMode by remember { mutableStateOf(ThemePreference.isDarkMode(this)) }
 
             MaterialTheme(
@@ -59,7 +59,6 @@ class MainActivity : ComponentActivity() {
                             isDarkMode = !isDarkMode
                             ThemePreference.setDarkMode(this, isDarkMode)
                         },
-                        // Logout sends the user back to LoginActivity and clears back stack.
                         onLogout = { logoutAndReturnToLogin() }
                     )
                 }
@@ -79,8 +78,6 @@ class MainActivity : ComponentActivity() {
     ) {
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
-
-        // Simple state to control the FAQ dialog visibility (state management).
         var showFaqDialog by remember { mutableStateOf(false) }
 
         ModalNavigationDrawer(
@@ -108,12 +105,14 @@ class MainActivity : ComponentActivity() {
             Scaffold(
                 topBar = {
                     CenterAlignedTopAppBar(
-                        title = { Text("AskUp") },
+                        title = { Text(stringResource(R.string.main_app_title)) },
                         navigationIcon = {
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                 Icon(
                                     imageVector = Icons.Default.Menu,
-                                    contentDescription = "Menu"
+                                    contentDescription = stringResource(
+                                        R.string.menu_content_description
+                                    )
                                 )
                             }
                         }
@@ -129,13 +128,16 @@ class MainActivity : ComponentActivity() {
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = "Welcome, $username!",
+                        text = stringResource(R.string.main_welcome, username),
                         style = MaterialTheme.typography.headlineMedium,
                         modifier = Modifier.padding(bottom = 32.dp)
                     )
 
                     Text(
-                        text = "Role: ${role.replaceFirstChar { it.uppercase() }}",
+                        text = stringResource(
+                            R.string.main_role_label,
+                            role.replaceFirstChar { it.uppercase() }
+                        ),
                         style = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
@@ -155,7 +157,7 @@ class MainActivity : ComponentActivity() {
                             },
                             modifier = Modifier.padding(8.dp)
                         ) {
-                            Text(text = "Go to student view")
+                            Text(text = stringResource(R.string.main_student_button))
                         }
                     } else if (role == "lecturer") {
                         Button(
@@ -172,30 +174,28 @@ class MainActivity : ComponentActivity() {
                             },
                             modifier = Modifier.padding(8.dp)
                         ) {
-                            Text(text = "Go to lecturer view")
+                            Text(text = stringResource(R.string.main_lecturer_button))
                         }
                     } else {
                         Text(
-                            text = "This role has no view configured.",
+                            text = stringResource(R.string.main_role_unknown),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
 
-                // Simple FAQ dialog (counts as extra UX/help feature).
                 if (showFaqDialog) {
                     AlertDialog(
                         onDismissRequest = { showFaqDialog = false },
-                        title = { Text("FAQ") },
+                        title = { Text(stringResource(R.string.drawer_faq)) },
                         text = {
                             Text(
-                                "AskUp lets students submit and upvote questions in real time, " +
-                                        "while lecturers can pin and answer the most important ones."
+                                text = stringResource(R.string.main_faq_text)
                             )
                         },
                         confirmButton = {
                             TextButton(onClick = { showFaqDialog = false }) {
-                                Text("OK")
+                                Text(stringResource(R.string.close_button))
                             }
                         }
                     )
@@ -218,7 +218,7 @@ class MainActivity : ComponentActivity() {
                 .padding(16.dp)
         ) {
             Text(
-                text = "Settings",
+                text = stringResource(R.string.settings_title),
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
@@ -226,12 +226,11 @@ class MainActivity : ComponentActivity() {
             Divider()
 
             Text(
-                text = "Accessibility",
+                text = stringResource(R.string.accessibility_title),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(vertical = 16.dp)
             )
 
-            // Dark mode toggle – accessibility + user preference.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -241,11 +240,14 @@ class MainActivity : ComponentActivity() {
             ) {
                 Column {
                     Text(
-                        text = "Dark Mode",
+                        text = stringResource(R.string.dark_mode_label),
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(
-                        text = if (isDarkMode) "Enabled" else "Disabled",
+                        text = if (isDarkMode)
+                            stringResource(R.string.dark_mode_enabled)
+                        else
+                            stringResource(R.string.dark_mode_disabled),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -259,15 +261,17 @@ class MainActivity : ComponentActivity() {
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             Text(
-                text = "Current theme: ${if (isDarkMode) "Dark 🌙" else "Light ☀️"}",
+                text = stringResource(
+                    if (isDarkMode) R.string.current_theme_dark
+                    else R.string.current_theme_light
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
             )
 
-            // FAQ entry – opens a simple help dialog.
             Text(
-                text = "FAQ",
+                text = stringResource(R.string.drawer_faq),
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -278,9 +282,8 @@ class MainActivity : ComponentActivity() {
                     }
             )
 
-            // Logout entry – clears back stack and returns to LoginActivity.
             Text(
-                text = "Logout",
+                text = stringResource(R.string.drawer_logout),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier
@@ -338,7 +341,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // Centralised logout: clears activity back stack and returns to LoginActivity.
     private fun logoutAndReturnToLogin() {
         val intent = Intent(this, LoginActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

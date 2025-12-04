@@ -19,8 +19,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.askup.database.AppDatabase
 import com.example.askup.database.Question
@@ -119,12 +121,12 @@ class LecturerActivity : ComponentActivity() {
     // Location helper used by both the initial load and the permission callback.
     // Fetches a friendly "City, Country" string and returns it via the onResult callback.
     private fun fetchCityName(onResult: (String) -> Unit) {
-        val fineGranted = ActivityCompat.checkSelfPermission(
+        val fineGranted = ContextCompat.checkSelfPermission(
             this,
             Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
-        val coarseGranted = ActivityCompat.checkSelfPermission(
+        val coarseGranted = ContextCompat.checkSelfPermission(
             this,
             Manifest.permission.ACCESS_COARSE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
@@ -138,7 +140,7 @@ class LecturerActivity : ComponentActivity() {
                 ),
                 LOCATION_PERMISSION_REQUEST_CODE
             )
-            onResult("Unknown city")
+            onResult(getString(R.string.location_unknown))
             return
         }
 
@@ -160,18 +162,18 @@ class LecturerActivity : ComponentActivity() {
                         val label = if (!city.isNullOrBlank() && !country.isNullOrBlank()) {
                             "$city, $country"
                         } else {
-                            "Unknown city"
+                            getString(R.string.location_unknown)
                         }
                         onResult(label)
                     } catch (e: Exception) {
-                        onResult("Unknown city")
+                        onResult(getString(R.string.location_unknown))
                     }
                 } else {
-                    onResult("Unknown city")
+                    onResult(getString(R.string.location_unknown))
                 }
             }
             .addOnFailureListener {
-                onResult("Unknown city")
+                onResult(getString(R.string.location_unknown))
             }
     }
 
@@ -188,9 +190,6 @@ class LecturerActivity : ComponentActivity() {
             grantResults.isNotEmpty() &&
             grantResults[0] == PackageManager.PERMISSION_GRANTED
         ) {
-            // We cannot directly change Compose state here, so we just refresh the
-            // last known location; the next time the Composable calls fetchCityName
-            // it will resolve to the new permission state.
             fetchCityName { /* no-op here */ }
         } else {
             // Permission denied – optional: keep "Unknown city" label.
@@ -257,7 +256,12 @@ class LecturerActivity : ComponentActivity() {
                     CenterAlignedTopAppBar(
                         title = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Lecturer view – $username")
+                                Text(
+                                    text = stringResource(
+                                        id = R.string.lecturer_title_prefix,
+                                        username
+                                    )
+                                )
                                 Text(
                                     text = cityName,
                                     style = MaterialTheme.typography.labelSmall,
@@ -277,7 +281,9 @@ class LecturerActivity : ComponentActivity() {
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                 Icon(
                                     imageVector = Icons.Default.Menu,
-                                    contentDescription = "Menu"
+                                    contentDescription = stringResource(
+                                        id = R.string.menu_content_description
+                                    )
                                 )
                             }
                         }
@@ -291,7 +297,7 @@ class LecturerActivity : ComponentActivity() {
                         .padding(16.dp)
                 ) {
                     Text(
-                        text = "Pin important questions and mark them as answered.",
+                        text = stringResource(id = R.string.lecturer_intro_text),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(bottom = 16.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -303,7 +309,7 @@ class LecturerActivity : ComponentActivity() {
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "No questions yet.",
+                                text = stringResource(id = R.string.lecturer_no_questions),
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         }
@@ -347,18 +353,15 @@ class LecturerActivity : ComponentActivity() {
         if (showInstructionsDialog) {
             AlertDialog(
                 onDismissRequest = { showInstructionsDialog = false },
-                title = { Text("Instructions") },
+                title = { Text(stringResource(id = R.string.lecturer_instructions_title)) },
                 text = {
                     Text(
-                        "Tap a question to add or edit an answer.\n\n" +
-                                "Use the buttons on each card to mark questions as answered " +
-                                "or pending, and to pin important questions.\n\n" +
-                                "Use the Settings menu to switch between light and dark mode."
+                        text = stringResource(id = R.string.lecturer_instructions_text)
                     )
                 },
                 confirmButton = {
                     TextButton(onClick = { showInstructionsDialog = false }) {
-                        Text("Close")
+                        Text(stringResource(id = R.string.close_button))
                     }
                 }
             )
@@ -379,7 +382,7 @@ class LecturerActivity : ComponentActivity() {
                 .padding(16.dp)
         ) {
             Text(
-                text = "Settings",
+                text = stringResource(id = R.string.settings_title),
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
@@ -387,7 +390,7 @@ class LecturerActivity : ComponentActivity() {
             Divider()
 
             Text(
-                text = "Accessibility",
+                text = stringResource(id = R.string.accessibility_title),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(vertical = 16.dp)
             )
@@ -401,11 +404,14 @@ class LecturerActivity : ComponentActivity() {
             ) {
                 Column {
                     Text(
-                        text = "Dark Mode",
+                        text = stringResource(id = R.string.dark_mode_label),
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(
-                        text = if (isDarkMode) "Enabled" else "Disabled",
+                        text = if (isDarkMode)
+                            stringResource(id = R.string.dark_mode_enabled)
+                        else
+                            stringResource(id = R.string.dark_mode_disabled),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -421,7 +427,12 @@ class LecturerActivity : ComponentActivity() {
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             Text(
-                text = "Current theme: ${if (isDarkMode) "Dark 🌙" else "Light ☀️"}",
+                text = stringResource(
+                    id = if (isDarkMode)
+                        R.string.current_theme_dark
+                    else
+                        R.string.current_theme_light
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
@@ -429,7 +440,7 @@ class LecturerActivity : ComponentActivity() {
 
             // Instructions entry in the drawer.
             Text(
-                text = "Instructions",
+                text = stringResource(id = R.string.instructions_title),
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -444,7 +455,7 @@ class LecturerActivity : ComponentActivity() {
 
             // Logout entry in the drawer – clears the back stack and returns to LoginActivity.
             Text(
-                text = "Logout",
+                text = stringResource(id = R.string.drawer_logout),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier
@@ -499,8 +510,13 @@ class LecturerActivity : ComponentActivity() {
                         .padding(bottom = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    val statusText = if (question.isAnswered)
+                        stringResource(id = R.string.student_status_answered)
+                    else
+                        stringResource(id = R.string.student_status_pending)
+
                     Text(
-                        text = if (question.isAnswered) "Answered" else "Pending",
+                        text = statusText,
                         color = if (question.isAnswered)
                             MaterialTheme.colorScheme.primary
                         else
@@ -510,7 +526,7 @@ class LecturerActivity : ComponentActivity() {
 
                     if (question.isHighlighted) {
                         Text(
-                            text = "📌 Pinned",
+                            text = stringResource(id = R.string.student_card_pinned),
                             color = MaterialTheme.colorScheme.tertiary,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -519,7 +535,7 @@ class LecturerActivity : ComponentActivity() {
 
                 if (question.answer != null) {
                     Text(
-                        text = "Answer:",
+                        text = stringResource(id = R.string.lecturer_answer_label),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -537,22 +553,29 @@ class LecturerActivity : ComponentActivity() {
                 ) {
                     TextButton(onClick = onToggleAnswered) {
                         Text(
-                            text = if (question.isAnswered) "Mark as pending"
-                            else "Mark as answered"
+                            text = if (question.isAnswered)
+                                stringResource(id = R.string.lecturer_mark_pending)
+                            else
+                                stringResource(id = R.string.lecturer_mark_answered)
                         )
                     }
 
                     TextButton(onClick = onTogglePinned) {
                         Text(
-                            text = if (question.isHighlighted) "Unpin"
-                            else "Pin"
+                            text = if (question.isHighlighted)
+                                stringResource(id = R.string.lecturer_unpin)
+                            else
+                                stringResource(id = R.string.lecturer_pin)
                         )
                     }
 
                     Button(onClick = onEditAnswer) {
                         Text(
-                            text = if (question.answer == null) "Add answer"
-                            else "Edit answer"
+                            text = if (question.answer == null)
+                                stringResource(id = R.string.lecturer_add_answer)
+                            else
+                                stringResource(id = R.string.lecturer_edit_answer)
+
                         )
                     }
                 }
@@ -570,7 +593,7 @@ class LecturerActivity : ComponentActivity() {
     ) {
         AlertDialog(
             onDismissRequest = onDismiss,
-            title = { Text("Answer question") },
+            title = { Text(stringResource(id = R.string.lecturer_answer_dialog_title)) },
             text = {
                 Column {
                     Text(
@@ -587,12 +610,12 @@ class LecturerActivity : ComponentActivity() {
             },
             confirmButton = {
                 Button(onClick = onSave, enabled = answerText.isNotBlank()) {
-                    Text("Save")
+                    Text(stringResource(id = R.string.lecturer_answer_dialog_save))
                 }
             },
             dismissButton = {
                 TextButton(onClick = onDismiss) {
-                    Text("Cancel")
+                    Text(stringResource(id = R.string.lecturer_answer_dialog_cancel))
                 }
             }
         )

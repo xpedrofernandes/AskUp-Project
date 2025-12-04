@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App -->
+    <string name="app_name">AskUp</string>
+    <string name="title_activity_login">LoginActivity</string>
+    <string name="title_activity_student">StudentActivity</string>
+    <string name="title_activity_lecturer">LecturerActivity</string>
+
+    <!-- Common / Settings / Drawer -->
+    <string name="settings_title">Definições</string>
+    <string name="settings_accessibility">Acessibilidade</string>
+    <string name="settings_dark_mode">Modo escuro</string>
+    <string name="settings_enabled">Ativado</string>
+    <string name="settings_disabled">Desativado</string>
+    <string name="settings_current_theme">Tema atual: %1$s</string>
+    <string name="settings_theme_dark">Escuro</string>
+    <string name="settings_theme_light">Claro</string>
+    <string name="drawer_instructions">Instruções</string>
+    <string name="drawer_faq">FAQ</string>
+    <string name="drawer_logout">Terminar sessão</string>
+    <string name="current_theme_dark">Tema atual: Escuro 🌙</string>
+    <string name="current_theme_light">Tema atual: Claro ☀️</string>
+
+
+    <!-- Location -->
+    <string name="location_locating">A obter localização...</string>
+    <string name="location_unknown">Cidade desconhecida</string>
+
+    <!-- Login / common -->
+    <string name="login_title">Login AskUp</string>
+    <string name="login_welcome">Bem-vindo ao AskUp</string>
+    <string name="username_label">Nome de utilizador</string>
+    <string name="password_label">Palavra-passe</string>
+    <string name="login_button">Entrar</string>
+    <string name="login_register_prompt">Ainda não tem conta? Registrar</string>
+
+    <string name="error_enter_username_password">Introduza o nome de utilizador e a palavra-passe</string>
+    <string name="login_welcome_back">Bem-vindo de volta, %1$s!</string>
+    <string name="login_invalid_credentials">Nome de utilizador ou palavra-passe inválidos</string>
+    <string name="login_error_generic">Erro no login: %1$s</string>
+
+    <!-- Drawer / settings -->
+    <string name="accessibility_title">Acessibilidade</string>
+    <string name="dark_mode_label">Modo escuro</string>
+    <string name="dark_mode_enabled">Ativado</string>
+    <string name="dark_mode_disabled">Desativado</string>
+
+
+    <!-- Instructions -->
+    <string name="instructions_title">Instruções</string>
+    <string name="login_instructions_text">Introduza o seu nome de utilizador e palavra-passe do AskUp para entrar.\n\nUse o menu para alternar entre modo claro e escuro.</string>
+    <string name="close_button">Fechar</string>
+
+    <!-- A11y -->
+    <string name="menu_content_description">Menu</string>
+
+    <!-- Register -->
+    <string name="register_appbar_title">Criar conta</string>
+    <string name="register_header">Criar conta</string>
+    <string name="register_username_label">Nome de utilizador</string>
+    <string name="register_password_label">Palavra-passe</string>
+    <string name="register_confirm_password_label">Confirmar palavra-passe</string>
+    <string name="register_role_prompt">Eu sou:</string>
+    <string name="register_role_student">Aluno</string>
+    <string name="register_role_lecturer">Docente</string>
+    <string name="register_username_taken">Este nome de utilizador já existe</string>
+    <string name="register_success">Registo concluído com sucesso!</string>
+    <string name="register_error_generic">Erro: %1$s</string>
+    <string name="register_instructions">Preenche os teus dados, escolhe o teu papel (aluno ou docente) e toca em Registar para criar a conta.</string>
+    <string name="back_content_description">Voltar</string>
+    <string name="register_button">Registrar</string>
+    <string name="register_error_username_required">Por favor, insira um nome de usuário</string>
+    <string name="register_error_password_required">Por favor, insira uma senha</string>
+    <string name="register_error_password_mismatch">As senhas não correspondem</string>
+    <string name="register_error_password_short">A senha deve ter pelo menos 4 caracteres</string>
+    <string name="register_login_prompt">Já tem uma conta? Entrar</string>
+    <string name="register_title">Criar Conta</string>
+    <string name="register_role_label">Eu sou:</string>
+    <string name="register_student">Estudante</string>
+    <string name="register_lecturer">Professor</string>
+
+
+    <!-- Main -->
+    <string name="main_app_title">AskUp</string>
+    <string name="main_welcome">Bem-vindo, %1$s!</string>
+    <string name="main_role_label">Papel: %1$s</string>
+    <string name="main_student_button">Ir para vista de aluno</string>
+    <string name="main_lecturer_button">Ir para vista de docente</string>
+    <string name="main_role_unknown">Este papel não tem vista configurada.</string>
+    <string name="main_faq_text">
+    O AskUp permite que os estudantes enviem e votem em perguntas em tempo real, enquanto os docentes podem fixar e responder às mais importantes.
+    </string>
+
+
+    <!-- Student view -->
+    <string name="student_title">Perguntas</string>
+    <string name="student_no_questions">Ainda não há perguntas. Sê o primeiro a perguntar!</string>
+    <string name="student_dialog_ask_title">Fazer pergunta</string>
+    <string name="student_dialog_ask_prompt">O que gostarias de perguntar?</string>
+    <string name="student_dialog_ask_placeholder">Escreve ou dita a tua pergunta...</string>
+    <string name="student_dialog_ask_post">Publicar</string>
+    <string name="student_dialog_ask_cancel">Cancelar</string>
+    <string name="student_details_title">Detalhes da pergunta</string>
+    <string name="student_details_upvotes">Gostos:</string>
+    <string name="student_details_posted_at">Criada em:</string>
+    <string name="student_details_status">Estado:</string>
+    <string name="student_status_answered">Respondida</string>
+    <string name="student_status_pending">Pendente</string>
+    <string name="student_details_pinned">Fixada:</string>
+    <string name="student_details_pinned_yes">Sim</string>
+    <string name="student_details_answer_label">Resposta:</string>
+    <string name="student_card_answered">✓ Respondida</string>
+    <string name="student_card_pinned">📌 Fixada</string>
+    <string name="student_faq_title">FAQ</string>
+    <string name="student_faq_text">Desliza para a direita ou toca no ícone de gosto para votar nas perguntas.\n\nMantém o dedo pressionado numa carta para ver os detalhes completos.\n\nUsa o menu Definições para alternar entre modo claro e escuro.</string>
+
+    <!-- Speech recognition -->
+    <string name="speech_prompt">Diz a tua pergunta</string>
+    <string name="speech_not_available">Reconhecimento de voz não disponível</string>
+
+    <!-- Lecturer view -->
+    <string name="lecturer_title_prefix">Vista de docente – %1$s</string>
+    <string name="lecturer_intro_text">Fixa perguntas importantes e marca-as como respondidas.</string>
+    <string name="lecturer_no_questions">Ainda não há perguntas.</string>
+    <string name="lecturer_answer_label">Resposta:</string>
+    <string name="lecturer_mark_pending">Marcar como pendente</string>
+    <string name="lecturer_mark_answered">Marcar como respondida</string>
+    <string name="lecturer_pin">Fixar</string>
+    <string name="lecturer_unpin">Desafixar</string>
+    <string name="lecturer_add_answer">Adicionar resposta</string>
+    <string name="lecturer_edit_answer">Editar resposta</string>
+    <string name="lecturer_answer_dialog_title">Responder à pergunta</string>
+    <string name="lecturer_answer_dialog_save">Guardar</string>
+    <string name="lecturer_answer_dialog_cancel">Cancelar</string>
+    <string name="lecturer_instructions_title">Instruções</string>
+    <string name="lecturer_instructions_text">Toca numa pergunta para adicionar ou editar uma resposta.\n\nUsa os botões em cada carta para marcar as perguntas como respondidas ou pendentes, e para fixar as mais importantes.\n\nUsa o menu Definições para alternar entre modo claro e escuro.</string>
+</resources>

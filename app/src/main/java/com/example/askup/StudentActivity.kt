@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -78,9 +79,12 @@ class StudentActivity : ComponentActivity() {
         userId = intent.getIntExtra("userId", 0)
         val username = intent.getStringExtra("username") ?: "Student"
 
+        // Initial text for location label
+        val initialCityText = getString(R.string.location_locating)
+
         setContent {
             var isDarkMode by remember { mutableStateOf(ThemePreference.isDarkMode(this)) }
-            var cityName by remember { mutableStateOf("Getting location...") }
+            var cityName by remember { mutableStateOf(initialCityText) }
 
             // When the screen is first composed, try to retrieve the city name.
             LaunchedEffect(Unit) {
@@ -157,7 +161,7 @@ class StudentActivity : ComponentActivity() {
                 arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
                 LOCATION_PERMISSION_REQUEST_CODE
             )
-            onResult("Location permission not granted")
+            onResult(getString(R.string.location_unknown))
             return
         }
 
@@ -177,18 +181,18 @@ class StudentActivity : ComponentActivity() {
                             when {
                                 city != null && country != null -> "$city, $country"
                                 city != null -> city
-                                else -> "Unknown city"
+                                else -> getString(R.string.location_unknown)
                             }
                         )
                     } catch (e: Exception) {
-                        onResult("Location unavailable")
+                        onResult(getString(R.string.location_unknown))
                     }
                 } else {
-                    onResult("Location unavailable")
+                    onResult(getString(R.string.location_unknown))
                 }
             }
             .addOnFailureListener {
-                onResult("Location error")
+                onResult(getString(R.string.location_unknown))
             }
     }
 
@@ -204,13 +208,11 @@ class StudentActivity : ComponentActivity() {
             grantResults.isNotEmpty() &&
             grantResults[0] == PackageManager.PERMISSION_GRANTED
         ) {
-            // Permission was granted – call your function that gets the city again
-            fetchCityName{ /* no-op */ }
+            fetchCityName { /* city is updated via LaunchedEffect next time */ }
         } else {
-            // Permission denied – optional: handle this (e.g., keep "Unknown city")
+            // Permission denied – keep "Unknown city"
         }
     }
-
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
@@ -273,7 +275,7 @@ class StudentActivity : ComponentActivity() {
                     CenterAlignedTopAppBar(
                         title = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Questions")
+                                Text(stringResource(R.string.student_title))
                                 Text(
                                     cityName,
                                     style = MaterialTheme.typography.labelSmall,
@@ -293,7 +295,9 @@ class StudentActivity : ComponentActivity() {
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                 Icon(
                                     imageVector = Icons.Default.Menu,
-                                    contentDescription = "Menu"
+                                    contentDescription = stringResource(
+                                        R.string.menu_content_description
+                                    )
                                 )
                             }
                         }
@@ -303,7 +307,12 @@ class StudentActivity : ComponentActivity() {
                     FloatingActionButton(
                         onClick = { showDialog = true }
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Ask Question")
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = stringResource(
+                                R.string.student_dialog_ask_title
+                            )
+                        )
                     }
                 }
             ) { padding ->
@@ -319,7 +328,7 @@ class StudentActivity : ComponentActivity() {
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "No questions yet. Be the first to ask!",
+                                text = stringResource(R.string.student_no_questions),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -370,17 +379,15 @@ class StudentActivity : ComponentActivity() {
         if (showFaqDialog) {
             AlertDialog(
                 onDismissRequest = { showFaqDialog = false },
-                title = { Text("FAQ") },
+                title = { Text(stringResource(R.string.student_faq_title)) },
                 text = {
                     Text(
-                        "Swipe right or tap the thumbs-up icon to upvote questions.\n\n" +
-                                "Long-press a card to see full question details.\n\n" +
-                                "Use the Settings menu to switch between light and dark mode."
+                        stringResource(R.string.student_faq_text)
                     )
                 },
                 confirmButton = {
                     TextButton(onClick = { showFaqDialog = false }) {
-                        Text("Close")
+                        Text(stringResource(R.string.close_button))
                     }
                 }
             )
@@ -401,7 +408,7 @@ class StudentActivity : ComponentActivity() {
                 .padding(16.dp)
         ) {
             Text(
-                text = "Settings",
+                text = stringResource(R.string.settings_title),
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
@@ -409,7 +416,7 @@ class StudentActivity : ComponentActivity() {
             Divider()
 
             Text(
-                text = "Accessibility",
+                text = stringResource(R.string.accessibility_title),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(vertical = 16.dp)
             )
@@ -423,11 +430,14 @@ class StudentActivity : ComponentActivity() {
             ) {
                 Column {
                     Text(
-                        text = "Dark Mode",
+                        text = stringResource(R.string.dark_mode_label),
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(
-                        text = if (isDarkMode) "Enabled" else "Disabled",
+                        text = if (isDarkMode)
+                            stringResource(R.string.dark_mode_enabled)
+                        else
+                            stringResource(R.string.dark_mode_disabled),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -443,7 +453,10 @@ class StudentActivity : ComponentActivity() {
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             Text(
-                text = "Current theme: ${if (isDarkMode) "Dark 🌙" else "Light ☀️"}",
+                text = stringResource(
+                    if (isDarkMode) R.string.current_theme_dark
+                    else R.string.current_theme_light
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(top = 8.dp, bottom = 24.dp)
@@ -451,7 +464,7 @@ class StudentActivity : ComponentActivity() {
 
             // FAQ entry in the drawer – opens a help dialog for this activity.
             Text(
-                text = "FAQ",
+                text = stringResource(R.string.drawer_faq),
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -466,7 +479,7 @@ class StudentActivity : ComponentActivity() {
 
             // Logout entry in the drawer – clears the back stack and returns to LoginActivity.
             Text(
-                text = "Logout",
+                text = stringResource(R.string.drawer_logout),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier
@@ -490,11 +503,11 @@ class StudentActivity : ComponentActivity() {
 
         AlertDialog(
             onDismissRequest = onDismiss,
-            title = { Text("Ask a Question") },
+            title = { Text(stringResource(R.string.student_dialog_ask_title)) },
             text = {
                 Column {
                     Text(
-                        text = "What would you like to ask?",
+                        text = stringResource(R.string.student_dialog_ask_prompt),
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
 
@@ -506,7 +519,9 @@ class StudentActivity : ComponentActivity() {
                         TextField(
                             value = questionText,
                             onValueChange = { questionText = it },
-                            placeholder = { Text("Type or speak your question...") },
+                            placeholder = {
+                                Text(stringResource(R.string.student_dialog_ask_placeholder))
+                            },
                             modifier = Modifier.weight(1f),
                             minLines = 3
                         )
@@ -535,12 +550,12 @@ class StudentActivity : ComponentActivity() {
                     },
                     enabled = questionText.isNotBlank()
                 ) {
-                    Text("Post")
+                    Text(stringResource(R.string.student_dialog_ask_post))
                 }
             },
             dismissButton = {
                 TextButton(onClick = onDismiss) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.student_dialog_ask_cancel))
                 }
             }
         )
@@ -553,7 +568,7 @@ class StudentActivity : ComponentActivity() {
     ) {
         AlertDialog(
             onDismissRequest = onDismiss,
-            title = { Text("Question Details") },
+            title = { Text(stringResource(R.string.student_details_title)) },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -571,7 +586,7 @@ class StudentActivity : ComponentActivity() {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "Upvotes:",
+                            text = stringResource(R.string.student_details_upvotes),
                             style = MaterialTheme.typography.labelMedium
                         )
                         Text(
@@ -585,7 +600,7 @@ class StudentActivity : ComponentActivity() {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "Posted at:",
+                            text = stringResource(R.string.student_details_posted_at),
                             style = MaterialTheme.typography.labelMedium
                         )
                         Text(
@@ -599,13 +614,19 @@ class StudentActivity : ComponentActivity() {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "Status:",
+                            text = stringResource(R.string.student_details_status),
                             style = MaterialTheme.typography.labelMedium
                         )
                         Text(
-                            text = if (question.isAnswered) "Answered" else "Pending",
+                            text = if (question.isAnswered)
+                                stringResource(R.string.student_status_answered)
+                            else
+                                stringResource(R.string.student_status_pending),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (question.isAnswered) MaterialTheme.colorScheme.primary else Color.Gray
+                            color = if (question.isAnswered)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                Color.Gray
                         )
                     }
 
@@ -615,11 +636,11 @@ class StudentActivity : ComponentActivity() {
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Pinned:",
+                                text = stringResource(R.string.student_details_pinned),
                                 style = MaterialTheme.typography.labelMedium
                             )
                             Text(
-                                text = "📌 Yes",
+                                text = "📌 " + stringResource(R.string.student_details_pinned_yes),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.tertiary
                             )
@@ -629,7 +650,7 @@ class StudentActivity : ComponentActivity() {
                     if (question.answer != null) {
                         Divider()
                         Text(
-                            text = "Answer:",
+                            text = stringResource(R.string.student_details_answer_label),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -642,7 +663,7 @@ class StudentActivity : ComponentActivity() {
             },
             confirmButton = {
                 TextButton(onClick = onDismiss) {
-                    Text("Close")
+                    Text(stringResource(R.string.close_button))
                 }
             }
         )
@@ -704,18 +725,24 @@ class StudentActivity : ComponentActivity() {
                             imageVector = Icons.Default.ThumbUp,
                             contentDescription = "Upvotes",
                             modifier = Modifier.size(20.dp),
-                            tint = if (hasUpvoted) MaterialTheme.colorScheme.primary else Color.Gray
+                            tint = if (hasUpvoted)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                Color.Gray
                         )
                         Text(
                             text = "${question.upvotes}",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (hasUpvoted) MaterialTheme.colorScheme.primary else Color.Gray
+                            color = if (hasUpvoted)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                Color.Gray
                         )
                     }
 
                     if (question.isAnswered) {
                         Text(
-                            text = "✓ Answered",
+                            text = stringResource(R.string.student_card_answered),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -723,9 +750,9 @@ class StudentActivity : ComponentActivity() {
 
                     if (question.isHighlighted) {
                         Text(
-                            text = "📌 Pinned",
+                            text = stringResource(R.string.student_card_pinned),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.tertiary
+                            color = MaterialTheme.typography.bodySmall.color
                         )
                     }
 
@@ -739,7 +766,7 @@ class StudentActivity : ComponentActivity() {
                 if (question.answer != null) {
                     Divider(modifier = Modifier.padding(vertical = 8.dp))
                     Text(
-                        text = "Answer:",
+                        text = stringResource(R.string.student_details_answer_label),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(bottom = 4.dp)
@@ -757,15 +784,22 @@ class StudentActivity : ComponentActivity() {
         speechResultCallback = callback
 
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            )
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-            putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak your question")
+            putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.speech_prompt))
         }
 
         try {
             speechRecognizerLauncher.launch(intent)
         } catch (e: Exception) {
-            Toast.makeText(this, "Speech recognition not available", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                getString(R.string.speech_not_available),
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 

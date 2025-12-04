@@ -1,6 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- App -->
     <string name="app_name">AskUp</string>
     <string name="title_activity_login">LoginActivity</string>
     <string name="title_activity_student">StudentActivity</string>
     <string name="title_activity_lecturer">LecturerActivity</string>
+
+    <!-- Common / Settings / Drawer -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_accessibility">Accessibility</string>
+    <string name="settings_dark_mode">Dark Mode</string>
+    <string name="settings_enabled">Enabled</string>
+    <string name="settings_disabled">Disabled</string>
+    <string name="settings_current_theme">Current theme: %1$s</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="drawer_instructions">Instructions</string>
+    <string name="drawer_faq">FAQ</string>
+    <string name="drawer_logout">Logout</string>
+    <string name="current_theme_dark">Current theme: Dark 🌙</string>
+    <string name="current_theme_light">Current theme: Light ☀️</string>
+
+
+    <!-- Location -->
+    <string name="location_locating">Locating...</string>
+    <string name="location_unknown">Unknown city</string>
+
+    <!-- Login / common -->
+    <string name="login_title">AskUp Login</string>
+    <string name="login_welcome">Welcome to AskUp</string>
+    <string name="username_label">Username</string>
+    <string name="password_label">Password</string>
+    <string name="login_button">Login</string>
+    <string name="login_register_prompt">Do not have an account? Register</string>
+
+    <string name="error_enter_username_password">Please enter username and password</string>
+    <string name="login_welcome_back">Welcome back, %1$s!</string>
+    <string name="login_invalid_credentials">Invalid username or password</string>
+    <string name="login_error_generic">Login error: %1$s</string>
+
+    <!-- Drawer / settings (login/register etc.) -->
+    <string name="accessibility_title">Accessibility</string>
+    <string name="dark_mode_label">Dark Mode</string>
+    <string name="dark_mode_enabled">Enabled</string>
+    <string name="dark_mode_disabled">Disabled</string>
+
+
+    <!-- Instructions -->
+    <string name="instructions_title">Instructions</string>
+    <string name="login_instructions_text">Enter your AskUp username and password to sign in.\n\nUse the menu to switch between light and dark mode.</string>
+
+    <string name="close_button">Close</string>
+
+    <!-- A11y -->
+    <string name="menu_content_description">Menu</string>
+
+    <!-- Register -->
+    <string name="register_appbar_title">Create account</string>
+    <string name="register_header">Create Account</string>
+    <string name="register_username_label">Username</string>
+    <string name="register_password_label">Password</string>
+    <string name="register_confirm_password_label">Confirm Password</string>
+    <string name="register_role_prompt">I am a:</string>
+    <string name="register_role_student">Student</string>
+    <string name="register_role_lecturer">Lecturer</string>
+    <string name="register_username_taken">Username already taken</string>
+    <string name="register_success">Registration successful!</string>
+    <string name="register_error_generic">Error: %1$s</string>
+    <string name="register_instructions">Fill in your details, choose your role (student or lecturer), and tap Register to create your account.</string>
+    <string name="back_content_description">Back</string>
+    <string name="register_button">Register</string>
+    <string name="register_error_username_required">Please enter a username</string>
+    <string name="register_error_password_required">Please enter a password</string>
+    <string name="register_error_password_mismatch">Passwords do not match</string>
+    <string name="register_error_password_short">Password must be at least 4 characters</string>
+    <string name="register_login_prompt">Already have an account? Log in</string>
+    <string name="register_title">Create Account</string>
+    <string name="register_role_label">I am a:</string>
+    <string name="register_student">Student</string>
+    <string name="register_lecturer">Lecturer</string>
+
+
+    <!-- Main -->
+    <string name="main_app_title">AskUp</string>
+    <string name="main_welcome">Welcome, %1$s!</string>
+    <string name="main_role_label">Role: %1$s</string>
+    <string name="main_student_button">Go to student view</string>
+    <string name="main_lecturer_button">Go to lecturer view</string>
+    <string name="main_role_unknown">This role has no view configured.</string>
+    <string name="main_faq_text">
+    AskUp lets students submit and upvote questions in real time, while lecturers can pin and answer the most important ones.
+    </string>
+
+    <!-- Student view -->
+    <string name="student_title">Questions</string>
+    <string name="student_no_questions">No questions yet. Be the first to ask!</string>
+    <string name="student_dialog_ask_title">Ask a Question</string>
+    <string name="student_dialog_ask_prompt">What would you like to ask?</string>
+    <string name="student_dialog_ask_placeholder">Type or speak your question...</string>
+    <string name="student_dialog_ask_post">Post</string>
+    <string name="student_dialog_ask_cancel">Cancel</string>
+    <string name="student_details_title">Question Details</string>
+    <string name="student_details_upvotes">Upvotes:</string>
+    <string name="student_details_posted_at">Posted at:</string>
+    <string name="student_details_status">Status:</string>
+    <string name="student_status_answered">Answered</string>
+    <string name="student_status_pending">Pending</string>
+    <string name="student_details_pinned">Pinned:</string>
+    <string name="student_details_pinned_yes">Yes</string>
+    <string name="student_details_answer_label">Answer:</string>
+    <string name="student_card_answered">✓ Answered</string>
+    <string name="student_card_pinned">📌 Pinned</string>
+    <string name="student_faq_title">FAQ</string>
+    <string name="student_faq_text">Swipe right or tap the thumbs-up icon to upvote questions.\n\nLong-press a card to see full question details.\n\nUse the Settings menu to switch between light and dark mode.</string>
+
+    <!-- Speech recognition -->
+    <string name="speech_prompt">Speak your question</string>
+    <string name="speech_not_available">Speech recognition not available</string>
+
+    <!-- Lecturer view -->
+    <string name="lecturer_title_prefix">Lecturer view – %1$s</string>
+    <string name="lecturer_intro_text">Pin important questions and mark them as answered.</string>
+    <string name="lecturer_no_questions">No questions yet.</string>
+    <string name="lecturer_answer_label">Answer:</string>
+    <string name="lecturer_mark_pending">Mark as pending</string>
+    <string name="lecturer_mark_answered">Mark as answered</string>
+    <string name="lecturer_pin">Pin</string>
+    <string name="lecturer_unpin">Unpin</string>
+    <string name="lecturer_add_answer">Add answer</string>
+    <string name="lecturer_edit_answer">Edit answer</string>
+    <string name="lecturer_answer_dialog_title">Answer question</string>
+    <string name="lecturer_answer_dialog_save">Save</string>
+    <string name="lecturer_answer_dialog_cancel">Cancel</string>
+    <string name="lecturer_instructions_title">Instructions</string>
+    <string name="lecturer_instructions_text">Tap a question to add or edit an answer.\n\nUse the buttons on each card to mark questions as answered or pending, and to pin important questions.\n\nUse the Settings menu to switch between light and dark mode.</string>
 </resources>
