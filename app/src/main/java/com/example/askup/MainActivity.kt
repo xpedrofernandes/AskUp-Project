@@ -2,6 +2,7 @@ package com.example.askup
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
@@ -9,14 +10,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.example.askup.database.AppDatabase
@@ -26,7 +24,8 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
 
     private lateinit var database: AppDatabase
-    private var testSessionId: Int = 0
+    private var sessionId: Int = 0
+    private var sessionCode: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,8 +36,9 @@ class MainActivity : ComponentActivity() {
         val userId = intent.getIntExtra("userId", 0)
         val role = intent.getStringExtra("role") ?: "student"
 
-        // Creates or loads the shared test session for this module (navigation + DB usage).
-        createTestSession(userId)
+        // Load saved session
+        sessionId = SessionPreference.getSessionId(this, userId)
+        sessionCode = SessionPreference.getCode(this, userId)
 
         setContent {
             var isDarkMode by remember { mutableStateOf(ThemePreference.isDarkMode(this)) }
@@ -79,6 +79,8 @@ class MainActivity : ComponentActivity() {
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
         val scope = rememberCoroutineScope()
         var showFaqDialog by remember { mutableStateOf(false) }
+        var showSessionDialog by remember { mutableStateOf(false) }
+        var hasSession by remember { mutableStateOf(sessionId != 0) }
 
         ModalNavigationDrawer(
             drawerState = drawerState,
@@ -87,9 +89,7 @@ class MainActivity : ComponentActivity() {
                     DrawerContent(
                         isDarkMode = isDarkMode,
                         onToggleDarkMode = onToggleDarkMode,
-                        onCloseDrawer = {
-                            scope.launch { drawerState.close() }
-                        },
+                        onCloseDrawer = { scope.launch { drawerState.close() } },
                         onLogout = {
                             scope.launch { drawerState.close() }
                             onLogout()
@@ -110,9 +110,7 @@ class MainActivity : ComponentActivity() {
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                 Icon(
                                     imageVector = Icons.Default.Menu,
-                                    contentDescription = stringResource(
-                                        R.string.menu_content_description
-                                    )
+                                    contentDescription = stringResource(R.string.menu_content_description)
                                 )
                             }
                         }
@@ -142,39 +140,89 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
 
-                    if (role == "student") {
-                        Button(
-                            onClick = {
-                                val intent = Intent(
-                                    this@MainActivity,
-                                    StudentActivity::class.java
-                                )
-                                intent.putExtra("userId", userId)
-                                intent.putExtra("username", username)
-                                intent.putExtra("sessionId", testSessionId)
-                                intent.putExtra("role", role)
-                                startActivity(intent)
-                            },
-                            modifier = Modifier.padding(8.dp)
-                        ) {
-                            Text(text = stringResource(R.string.main_student_button))
+                    if (role == "lecturer") {
+                        // Lecturer view
+                        if (hasSession) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 16.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text("Session Code:", style = MaterialTheme.typography.titleMedium)
+                                    Text(
+                                        sessionCode,
+                                        style = MaterialTheme.typography.headlineMedium,
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    )
+                                }
+                            }
+
+                            Button(
+                                onClick = {
+                                    val intent = Intent(this@MainActivity, LecturerActivity::class.java)
+                                    intent.putExtra("userId", userId)
+                                    intent.putExtra("username", username)
+                                    intent.putExtra("sessionId", sessionId)
+                                    intent.putExtra("role", role)
+                                    startActivity(intent)
+                                },
+                                modifier = Modifier.padding(8.dp)
+                            ) {
+                                Text(text = stringResource(R.string.main_lecturer_button))
+                            }
+
+                            TextButton(onClick = { showSessionDialog = true }) {
+                                Text("Create New Session")
+                            }
+                        } else {
+                            Text("You need to create a session", modifier = Modifier.padding(bottom = 16.dp))
+                            Button(
+                                onClick = { showSessionDialog = true },
+                                modifier = Modifier.padding(8.dp)
+                            ) {
+                                Text("Create Session")
+                            }
                         }
-                    } else if (role == "lecturer") {
-                        Button(
-                            onClick = {
-                                val intent = Intent(
-                                    this@MainActivity,
-                                    LecturerActivity::class.java
-                                )
-                                intent.putExtra("userId", userId)
-                                intent.putExtra("username", username)
-                                intent.putExtra("sessionId", testSessionId)
-                                intent.putExtra("role", role)
-                                startActivity(intent)
-                            },
-                            modifier = Modifier.padding(8.dp)
-                        ) {
-                            Text(text = stringResource(R.string.main_lecturer_button))
+
+                    } else if (role == "student") {
+                        // Student view
+                        if (hasSession) {
+                            Text(
+                                "Joined Session: $sessionCode",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            )
+
+                            Button(
+                                onClick = {
+                                    val intent = Intent(this@MainActivity, StudentActivity::class.java)
+                                    intent.putExtra("userId", userId)
+                                    intent.putExtra("username", username)
+                                    intent.putExtra("sessionId", sessionId)
+                                    intent.putExtra("role", role)
+                                    startActivity(intent)
+                                },
+                                modifier = Modifier.padding(8.dp)
+                            ) {
+                                Text(text = stringResource(R.string.main_student_button))
+                            }
+
+                            TextButton(onClick = { showSessionDialog = true }) {
+                                Text("Join Different Session")
+                            }
+                        } else {
+                            Text("Enter session code to join", modifier = Modifier.padding(bottom = 16.dp))
+                            Button(
+                                onClick = { showSessionDialog = true },
+                                modifier = Modifier.padding(8.dp)
+                            ) {
+                                Text("Join Session")
+                            }
                         }
                     } else {
                         Text(
@@ -188,11 +236,7 @@ class MainActivity : ComponentActivity() {
                     AlertDialog(
                         onDismissRequest = { showFaqDialog = false },
                         title = { Text(stringResource(R.string.drawer_faq)) },
-                        text = {
-                            Text(
-                                text = stringResource(R.string.main_faq_text)
-                            )
-                        },
+                        text = { Text(text = stringResource(R.string.main_faq_text)) },
                         confirmButton = {
                             TextButton(onClick = { showFaqDialog = false }) {
                                 Text(stringResource(R.string.close_button))
@@ -200,8 +244,150 @@ class MainActivity : ComponentActivity() {
                         }
                     )
                 }
+
+                if (showSessionDialog) {
+                    if (role == "lecturer") {
+                        CreateSessionDialog(
+                            userId = userId,
+                            onDismiss = { showSessionDialog = false },
+                            onCreated = { code ->
+                                sessionCode = code
+                                hasSession = true
+                                showSessionDialog = false
+                            }
+                        )
+                    } else {
+                        JoinSessionDialog(
+                            userId = userId,
+                            onDismiss = { showSessionDialog = false },
+                            onJoined = { code ->
+                                sessionCode = code
+                                hasSession = true
+                                showSessionDialog = false
+                            }
+                        )
+                    }
+                }
             }
         }
+    }
+
+    @Composable
+    fun CreateSessionDialog(
+        userId: Int,
+        onDismiss: () -> Unit,
+        onCreated: (String) -> Unit
+    ) {
+        var code by remember { mutableStateOf("") }
+        var error by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Create Session") },
+            text = {
+                Column {
+                    Text("Enter a 5-digit code for your session:", modifier = Modifier.padding(bottom = 8.dp))
+                    TextField(
+                        value = code,
+                        onValueChange = {
+                            if (it.length <= 5 && it.all { char -> char.isDigit() }) {
+                                code = it
+                                error = ""
+                            }
+                        },
+                        placeholder = { Text("12345") },
+                        singleLine = true
+                    )
+                    if (error.isNotEmpty()) {
+                        Text(error, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp))
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (code.length != 5) {
+                            error = "Code must be 5 digits"
+                        } else {
+                            createSession(userId, code) { success, message ->
+                                if (success) {
+                                    onCreated(code)
+                                } else {
+                                    error = message
+                                }
+                            }
+                        }
+                    },
+                    enabled = code.length == 5
+                ) {
+                    Text("Create")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    @Composable
+    fun JoinSessionDialog(
+        userId: Int,
+        onDismiss: () -> Unit,
+        onJoined: (String) -> Unit
+    ) {
+        var code by remember { mutableStateOf("") }
+        var error by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Join Session") },
+            text = {
+                Column {
+                    Text("Enter the 5-digit session code:", modifier = Modifier.padding(bottom = 8.dp))
+                    TextField(
+                        value = code,
+                        onValueChange = {
+                            if (it.length <= 5 && it.all { char -> char.isDigit() }) {
+                                code = it
+                                error = ""
+                            }
+                        },
+                        placeholder = { Text("12345") },
+                        singleLine = true
+                    )
+                    if (error.isNotEmpty()) {
+                        Text(error, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 4.dp))
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (code.length != 5) {
+                            error = "Code must be 5 digits"
+                        } else {
+                            joinSession(userId, code) { success, message ->
+                                if (success) {
+                                    onJoined(code)
+                                } else {
+                                    error = message
+                                }
+                            }
+                        }
+                    },
+                    enabled = code.length == 5
+                ) {
+                    Text("Join")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     @Composable
@@ -321,22 +507,75 @@ class MainActivity : ComponentActivity() {
         println("MainActivity: onDestroy - Activity is being destroyed")
     }
 
-    private fun createTestSession(userId: Int) {
+    private fun createSession(userId: Int, code: String, callback: (Boolean, String) -> Unit) {
         lifecycleScope.launch {
-            val existingSession = database.sessionDao().getSessionByCode("TEST123")
+            try {
+                // Check if code already exists
+                val existing = database.sessionDao().getSessionByCode(code)
+                if (existing != null) {
+                    runOnUiThread {
+                        callback(false, "Code already in use")
+                    }
+                    return@launch
+                }
 
-            if (existingSession == null) {
-                val testSession = Session(
-                    sessionCode = "TEST123",
+                // Create new session
+                val session = Session(
+                    sessionCode = code,
                     lecturerId = userId,
-                    sessionName = "CS301 - Software Development",
+                    sessionName = "Session $code",
                     isActive = true
                 )
+                val id = database.sessionDao().insertSession(session)
 
-                val sessionId = database.sessionDao().insertSession(testSession)
-                testSessionId = sessionId.toInt()
-            } else {
-                testSessionId = existingSession.sessionId
+                // Save to preferences
+                sessionId = id.toInt()
+                SessionPreference.saveSession(this@MainActivity, userId, sessionId, code)
+
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, "Session created", Toast.LENGTH_SHORT).show()
+                    callback(true, "Success")
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    callback(false, "Error: ${e.message}")
+                }
+            }
+        }
+    }
+
+    private fun joinSession(userId: Int, code: String, callback: (Boolean, String) -> Unit) {
+        lifecycleScope.launch {
+            try {
+                // Find session with this code
+                val session = database.sessionDao().getSessionByCode(code)
+
+                if (session == null) {
+                    runOnUiThread {
+                        callback(false, "Invalid code")
+                    }
+                    return@launch
+                }
+
+                if (!session.isActive) {
+                    runOnUiThread {
+                        callback(false, "Session ended")
+                    }
+                    return@launch
+                }
+
+                // Save to preferences
+                sessionId = session.sessionId
+                SessionPreference.saveSession(this@MainActivity, userId, sessionId, code)
+
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, "Joined session", Toast.LENGTH_SHORT).show()
+                    callback(true, "Success")
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    callback(false, "Error: ${e.message}")
+                }
             }
         }
     }
