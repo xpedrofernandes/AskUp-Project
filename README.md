@@ -43,9 +43,9 @@ Design requirements emphasize:
 
 <h2>Screenshots</h2>
 
-![image](<img width="337" height="738" alt="image" src="https://github.com/user-attachments/assets/2fb3e434-1b55-48c5-8af7-a066f92d66f4" />)
-![image](<img width="335" height="736" alt="image" src="https://github.com/user-attachments/assets/3d853e9f-193c-43dc-8744-2e7fbbe8799b" />)
-![image](<img width="337" height="738" alt="image" src="https://github.com/user-attachments/assets/8e26db56-b390-4688-b4de-974f07d3b40b" />)
-![image](<img width="338" height="739" alt="image" src="https://github.com/user-attachments/assets/43ddb607-8a08-474f-b084-b927ee28074f" />)
-![image](<img width="334" height="740" alt="image" src="https://github.com/user-attachments/assets/103a6312-4c42-4408-8b3d-551594dd672b" />)
-![image](<img width="336" height="739" alt="image" src="https://github.com/user-attachments/assets/1e6551e5-8076-4a74-9a69-0274e6a254b3" />)
+![image](https://github.com/user-attachments/assets/2fb3e434-1b55-48c5-8af7-a066f92d66f4)
+![image](https://github.com/user-attachments/assets/3d853e9f-193c-43dc-8744-2e7fbbe8799b)
+![image](https://github.com/user-attachments/assets/8e26db56-b390-4688-b4de-974f07d3b40b)
+![image](https://github.com/user-attachments/assets/43ddb607-8a08-474f-b084-b927ee28074f)
+![image](https://github.com/user-attachments/assets/103a6312-4c42-4408-8b3d-551594dd672b)
+![image](https://github.com/user-attachments/assets/1e6551e5-8076-4a74-9a69-0274e6a254b3)
