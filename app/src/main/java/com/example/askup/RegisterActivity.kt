@@ -26,7 +26,7 @@ class RegisterActivity : ComponentActivity() {
     // Initialises a single instance of the Room database for this activity.
     private lateinit var database: AppDatabase
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(savedZInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // gets a handle to the shared database so we can insert new users.
